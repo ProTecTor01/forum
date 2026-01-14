@@ -140,7 +140,6 @@ func GetPostHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionManag
 
 func CreatePostHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO: need to get rid of it since it's violating DRY
 		userID := utils.GetUserID(r.Context(), r, sm)
 		if userID == 0 {
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
@@ -214,7 +213,6 @@ func CreatePostHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionMa
 
 func DeletePostHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO: need to get rid of it since it's violating DRY
 		userID := utils.GetUserID(r.Context(), r, sm)
 		if userID == 0 {
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
@@ -250,11 +248,10 @@ func DeletePostHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionMa
 	}
 }
 
-// --------------------------------------------------------------------------------------|
+//--------------------------------------------------------------------------------------|
 
 func LikeHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO: need to get rid of it since it's violating DRY
 		userID := utils.GetUserID(r.Context(), r, sm)
 		if userID == 0 {
 			http.Redirect(w, r, "/login", http.StatusSeeOther)

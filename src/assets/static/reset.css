@@ -1,10 +1,19 @@
 :root {
-    --hn-orange: #ff6600;
-    --hn-bg: #f6f6ef;
-    --hn-meta-gray: #828282;
-    --hn-text: #000000;
-    --hn-font: Verdana, Geneva, sans-serif;
-    --hn-font-size: 10pt;
+    --primary-accent: #2c3e50;
+    --bg-primary: #ffffff;
+    --bg-secondary: #fafafa;
+    --text-primary: #1a1a1a;
+    --text-secondary: #6b7280;
+    --text-muted: #9ca3af;
+    --border-color: #e5e7eb;
+    --border-subtle: #f3f4f6;
+    --font-family: 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', 'Meiryo', sans-serif;
+    --font-size-base: 14px;
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
 }
 
 * {
@@ -14,20 +23,23 @@
 }
 
 body {
-    font-family: var(--hn-font);
-    font-size: var(--hn-font-size);
-    color: var(--hn-text);
-    background-color: #ffffff;
-    line-height: 1.2;
+    font-family: var(--font-family);
+    font-size: var(--font-size-base);
+    color: var(--text-primary);
+    background-color: var(--bg-primary);
+    line-height: 1.6;
+    letter-spacing: 0.01em;
 }
 
 a {
-    color: var(--hn-text);
+    color: var(--text-primary);
     text-decoration: none;
+    transition: color 0.2s ease;
 }
 
 a:hover {
-    text-decoration: underline;
+    color: var(--primary-accent);
+    text-decoration: none;
 }
 
 button {
@@ -41,7 +53,11 @@ button {
 }
 
 .error-message {
-    color: var(--hn-orange);
-    font-weight: bold;
-    margin-top: 8px;
+    color: #dc2626;
+    font-weight: 500;
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background-color: #fef2f2;
+    border-left: 2px solid #dc2626;
+    border-radius: 2px;
 }

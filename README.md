@@ -1,195 +1,251 @@
-# FORUM
+# Forum
 
-Go-based and **Hacker News inspired** web **Forum** for user communication, post categorization, and interaction with likes/dislikes, using **SQLite** for data storage and secure authentication.
+Веб-форум на Go для общения пользователей, категоризации постов и взаимодействия через лайки/дизлайки. Использует SQLite для хранения данных и безопасную аутентификацию.
 
----
+## Описание
 
-## Technologies Used
+Форум позволяет пользователям:
+- Регистрироваться и входить в систему
+- Создавать посты и комментарии
+- Организовывать посты по категориям
+- Оценивать посты и комментарии (лайки/дизлайки)
+- Фильтровать посты по категориям, созданным или понравившимся постам
+- Создавать вложенные комментарии (до 9 уровней вложенности)
+
+## Технологии
 
 * **Backend:** Go (Golang)
-* **Web Framework:** Standard Library (`net/http`)
-* **Database:** SQLite3
-* **Styling:** Custom CSS (Hacker News inspired aesthetic)
-* **Deployment:** Docker (Multi-stage build)
-* **Authentication:** bcrypt for password hashing, DB-backed sessions.
+* **Веб-фреймворк:** Стандартная библиотека (`net/http`)
+* **База данных:** SQLite3
+* **Стилизация:** Кастомный CSS в японском минималистичном стиле
+* **Развертывание:** Docker (многоэтапная сборка)
+* **Аутентификация:** bcrypt для хеширования паролей, сессии в базе данных
 
----
-
-## Project Structure
+## Структура проекта
 
 ```
 forum/
 └── src/
-    ├── Dockerfile              # Docker configuration (multi-stage build)
-    ├── runserver.sh            # Bash script to build and run the Docker container
-    ├── go.mod                  # Go module definition
-    ├── go.sum                  # Go dependencies
+    ├── Dockerfile              # Конфигурация Docker (многоэтапная сборка)
+    ├── runserver.sh            # Скрипт для сборки и запуска Docker контейнера
+    ├── go.mod                  # Определение Go модуля
+    ├── go.sum                  # Зависимости Go
     ├── cmd/server/
-    │   └── main.go             # Application entrypoint
+    │   └── main.go             # Точка входа приложения
     ├── internal/
-    │   ├── auth/               # Handlers and repository methods for user Auth (register/login/logout)
+    │   ├── auth/               # Обработчики и методы репозитория для аутентификации
     │   │   └── auth.go
-    │   ├── categories/         # Handlers and repository methods for Category management
+    │   ├── categories/         # Обработчики и методы для управления категориями
     │   │   └── categories.go
-    │   ├── comments/           # Handlers and repository methods for nested Comments
+    │   ├── comments/           # Обработчики и методы для вложенных комментариев
     │   │   └── comments.go
-    │   ├── config/             # Application setup, database initialization, and routing
+    │   ├── config/             # Настройка приложения, инициализация БД и маршрутизация
     │   │   └── config.go       
-    │   ├── errmsg/             # Centralized validation logic and error messages
+    │   ├── errmsg/             # Централизованная валидация и сообщения об ошибках
     │   │   └── errormessage.go 
-    │   ├── models/             # Core application data models (User, Post, Comment, Session, etc.)
+    │   ├── models/             # Основные модели данных (User, Post, Comment, Session)
     │   │   └── models.go       
-    │   ├── posts/              # Post lifecycle, retrieval, and polymorphic LikeHandler
+    │   ├── posts/              # Жизненный цикл постов, получение и обработка лайков
     │   │   └── posts.go        
-    │   ├── sessions/           # Database-backed session management
+    │   ├── sessions/           # Управление сессиями в базе данных
     │   │   └── sessions.go     
-    │   ├── utils/              # Utility functions (Env vars, UserID lookup)
+    │   ├── utils/              # Утилиты (переменные окружения, получение UserID)
     │   │   └── utils.go        
-    │   └── web/                # Template store, template rendering, and static file serving
+    │   └── web/                # Хранилище шаблонов, рендеринг и статические файлы
     │       └── web.go          
     └── assets/
-        ├── static/             # All CSS files
+        ├── static/             # Все CSS файлы
         ├── database/
-        |   ├── forum.db        # SQLlite database stores all entries
-        │   └── schema.sql      # Database schema (run at startup for migrations)
-        └── templates/          # All HTML templates
+        │   ├── forum.db        # SQLite база данных (создается автоматически)
+        │   └── schema.sql      # Схема базы данных (миграции при запуске)
+        └── templates/          # HTML шаблоны
             ├── layout.html
             ├── posts.html
             ├── post.html
-            └── ... (other templates)
+            └── ... (другие шаблоны)
 ```
-## Database Schema
 
-```mermaid
-erDiagram
-    USERS {
-        int id PK
-        string username
-        string email
-        string password_hash
-        datetime created_at
-        string role
-    }
-    SESSIONS {
-        string id PK
-        int user_id FK
-        datetime created_at
-        datetime expires_at
-    }
-    POSTS {
-        int id PK
-        int user_id FK
-        string title
-        string body
-        datetime created_at
-    }
-    COMMENTS {
-        int id PK
-        int user_id FK
-        int post_id FK
-        int parent_id
-        string body
-        datetime created_at
-        int depth
-    }
-    CATEGORIES {
-        int id PK
-        string name
-    }
-    POST_CATEGORIES {
-        int post_id FK
-        int category_id FK
-    }
-    LIKES {
-        int id PK
-        int user_id FK
-        int target_id
-        string target_type
-        int value
-    }
+## Установка и запуск
 
-    USERS ||--o{ SESSIONS : owns
-    USERS ||--o{ POSTS : creates
-    USERS ||--o{ COMMENTS : writes
-    USERS ||--o{ LIKES : gives
-    POSTS ||--o{ COMMENTS : has
-    POSTS ||--o{ LIKES : receives
-    POSTS ||--o{ POST_CATEGORIES : tagged_with
-    CATEGORIES ||--o{ POST_CATEGORIES : linked_to
-    COMMENTS ||--o{ LIKES : receives
-    COMMENTS ||--o{ COMMENTS : parent
-```
----
+### Docker (рекомендуется для Windows)
 
-## Installation
+**Для Windows Docker - самый простой способ запуска**, так как не требует установки компилятора C.
 
-### Standard
+1. **Установите и запустите Docker Desktop**
 
-1. Clone the repository:
-```bash
-git clone https://01.tomorrow-school.ai/git/dkyzyr/forum.git
+   - Если Docker Desktop не установлен: скачайте с [docker.com](https://www.docker.com/products/docker-desktop/)
+   - Запустите Docker Desktop и дождитесь полной загрузки (иконка в трее должна быть зеленой)
+   - Проверьте, что Docker работает:
+     ```powershell
+     docker --version
+     docker ps
+     ```
+
+2. **Запустите скрипт:**
+
+На Windows PowerShell (Git Bash или WSL):
+```powershell
 cd src
+bash runserver.sh 127.0.0.1:8080
 ```
-2. Install dependencies:
+
+На Linux/macOS:
+```bash
+cd src
+chmod +x runserver.sh
+./runserver.sh 127.0.0.1:8080
+```
+
+Скрипт автоматически соберет Docker образ и запустит контейнер.
+
+3. **Откройте в браузере:** `http://127.0.0.1:8080`
+
+**Обновление контейнера:**
+- Скрипт автоматически пересобирает образ при каждом запуске
+- Для полной пересборки без кеша используйте флаг `--rebuild`:
+  ```bash
+  bash runserver.sh 127.0.0.1:8080 --rebuild
+  ```
+
+**Если вы получили ошибку "dockerDesktopLinuxEngine: The system cannot find the file specified":**
+- Убедитесь, что Docker Desktop запущен (иконка в системном трее)
+- Перезапустите Docker Desktop
+- Проверьте, что Docker работает: `docker ps`
+
+### Стандартный способ (требует компилятор C)
+
+**Важно:** Для работы SQLite требуется компилятор C (GCC). На Windows его нужно установить отдельно.
+
+#### Установка компилятора C на Windows
+
+**Вариант 1: TDM-GCC (рекомендуется)**
+1. Скачайте и установите [TDM-GCC](https://jmeubank.github.io/tdm-gcc/)
+2. При установке выберите опцию "Add to PATH"
+3. Перезапустите терминал
+
+**Вариант 2: MinGW-w64**
+1. Скачайте [MSYS2](https://www.msys2.org/)
+2. Установите и откройте MSYS2 терминал
+3. Выполните: `pacman -S mingw-w64-x86_64-gcc`
+4. Добавьте `C:\msys64\mingw64\bin` в PATH
+
+**Вариант 3: Используйте WSL (Windows Subsystem for Linux)**
+1. Установите WSL: `wsl --install`
+2. В WSL установите: `sudo apt-get install build-essential`
+3. Запускайте приложение из WSL
+
+#### Запуск приложения
+
+1. **Клонируйте репозиторий:**
+```bash
+git clone https://01.tomorrow-school.ai/git/syersult/forum.git
+cd forum/src
+```
+
+2. **Установите зависимости:**
 ```bash
 go mod tidy
 ```
-3. Run the application:
-```bash
-go run cmd/server/main.go
+
+3. **Запустите приложение:**
+
+**Windows (PowerShell):**
+```powershell
+$env:CGO_ENABLED=1; go run cmd/server/main.go
 ```
-- Creates `internal/database/forum.db` automatically via migrations.
-4. Access at `http://localhost:8080`.
-
-**The recommended way to run the application is via Docker.**
-
-### Docker
-
-1. **Turn on Docker:** Docker should be running.
-
-2. **Run the script:** The `runserver.sh` script handles building the multi-stage Docker image and running the container. Pass the local IP and port you want to expose the server on.
-```bash
-cd src
-
-chmod +x runserver.sh
-
-./runserver.sh 127.0.0.1:8080
+Или используйте скрипт:
+```powershell
+.\run.ps1
 ```
-3. **Access:** Once the script finishes, access the application at `http://127.0.0.1:8080`.
 
----
+**Windows (CMD):**
+```cmd
+set CGO_ENABLED=1 && go run cmd/server/main.go
+```
+Или используйте скрипт:
+```cmd
+run.bat
+```
 
-## Usage
+**Linux/macOS:**
+```bash
+CGO_ENABLED=1 go run cmd/server/main.go
+```
 
-* **Register/Login**: Use `/register` to create an account and `/login` to access authenticated features.
-* **Posts**: View all posts at `/posts`, create at `/posts/create`, view a single post at `/posts/<id>`.
-* **Filtering**: Filter posts by category via `/posts?category=<id>` or by user-specific types (created, liked) via the dropdown on the posts page.
-* **Comments**: Add/delete comments on post detail pages (`/posts/<id>`). The system supports **nested comments** up to a depth of 9.
-* **Categories**: View all categories at `/categories`, and create a new category at `/categories/create`.
-* **Likes/Dislikes**: Use the voting links on post list and detail pages for both posts and comments.
-* **Logout**: Use `/logout` to end your session.
+База данных `forum.db` создается автоматически при первом запуске через миграции.
 
----
+4. **Откройте в браузере:** `http://localhost:8080`
 
-## Security
+**Если вы получили ошибку "gcc not found":**
+- На Windows: Используйте Docker (см. раздел выше) или установите компилятор C по инструкции выше
+- На Linux: Установите `build-essential`: `sudo apt-get install build-essential`
+- На macOS: Установите Xcode Command Line Tools: `xcode-select --install`
 
-* **Password Encryption**: Uses the industry-standard `golang.org/x/crypto/bcrypt` for secure, slow password hashing.
-* **Cookies**: Secure session cookies are used with `HttpOnly`, and configured to be `Secure` (HTTPS only) and `SameSite=Strict`.
-* **Input Validation**: All user-submitted data is validated (email format, username length, password complexity, content lengths) via `errmsg.go`.
-* **Database Constraints**: Security and integrity are enforced at the database level with foreign keys, cascading deletes, unique indexes on email/username, and check constraints on content length in `schema.sql`.
+## Использование
 
----
+### Основные функции
 
-## Dependencies
+* **Регистрация/Вход**: 
+  - `/register` - создание аккаунта
+  - `/login` - вход в систему
+  - `/logout` - выход из системы
 
-* `github.com/mattn/go-sqlite3`: SQLite driver
-* `golang.org/x/crypto/bcrypt`: Password hashing
-* Standard Go libraries: `net/http`, `html/template`, etc.
+* **Посты**:
+  - `/posts` - список всех постов
+  - `/posts/create` - создание нового поста (требуется авторизация)
+  - `/posts/<id>` - просмотр конкретного поста
 
----
+* **Фильтрация**:
+  - По категориям: `/posts?category=<id>`
+  - Мои посты: выберите "my posts" в фильтре (только для авторизованных)
+  - Понравившиеся: выберите "my liked posts" в фильтре (только для авторизованных)
 
-## Notes
+* **Комментарии**:
+  - Добавление комментариев на странице поста
+  - Поддержка вложенных комментариев до 9 уровней
+  - Удаление собственных комментариев
 
-* **HTTPS** is highly recommended in production environments for truly secure cookies and traffic.
-* Database migrations run automatically on startup (`schema.sql`) to ensure the database is always up-to-date.
-* Footer has few usefull links.
+* **Категории**:
+  - `/categories` - просмотр всех категорий
+  - `/categories/create` - создание категории (требуется авторизация)
+
+* **Лайки/Дизлайки**:
+  - Голосование за посты и комментарии
+  - Отображение количества лайков/дизлайков для всех пользователей
+
+## Безопасность
+
+* **Шифрование паролей**: Используется `golang.org/x/crypto/bcrypt` для безопасного хеширования паролей
+* **Cookies**: Безопасные сессионные cookies с флагами `HttpOnly`, `Secure` (для HTTPS) и `SameSite=Strict`
+* **Валидация данных**: Все пользовательские данные валидируются (формат email, длина username, сложность пароля, длина контента)
+* **Ограничения БД**: Безопасность и целостность обеспечиваются на уровне базы данных через внешние ключи, каскадные удаления, уникальные индексы и проверочные ограничения
+
+## Зависимости
+
+* `github.com/mattn/go-sqlite3` - драйвер SQLite
+* `golang.org/x/crypto/bcrypt` - хеширование паролей
+* Стандартные библиотеки Go: `net/http`, `html/template`, и др.
+
+## Переменные окружения
+
+* `PORT` - порт для запуска сервера (по умолчанию: 8080)
+* `DB_PATH` - путь к файлу базы данных (по умолчанию: `./assets/database/forum.db`)
+* `SCHEMA_PATH` - путь к файлу схемы БД (по умолчанию: `./assets/database/schema.sql`)
+* `TEMPLATE_DIR` - директория с шаблонами (по умолчанию: `./assets/templates/`)
+* `STATIC_DIR` - директория со статическими файлами (по умолчанию: `./assets/static/`)
+* `FORCE_HTTPS` - включить безопасные cookies (по умолчанию: `false`)
+
+## Важные замечания
+
+* **HTTPS** настоятельно рекомендуется для production окружения для обеспечения безопасности cookies и трафика
+* Миграции базы данных выполняются автоматически при запуске (`schema.sql`)
+* В футере находятся полезные ссылки
+
+## Дизайн
+
+Интерфейс выполнен в японском минималистичном стиле:
+- Чистые линии и много белого пространства
+- Приглушенная цветовая палитра
+- Аккуратные отступы и типографика
+- Эргономичная навигация
+- Плавные переходы и анимации

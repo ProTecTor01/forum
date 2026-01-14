@@ -1,59 +1,70 @@
 .container {
-    max-width: 500px;
-    margin: 10px auto; 
-    padding: 10px 15px;
-    background-color: var(--hn-bg);
-    border: 1px solid #ccc; 
+    max-width: 600px;
+    margin: var(--spacing-xl) auto; 
+    padding: var(--spacing-xl);
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color); 
     text-align: center;
+    border-radius: 6px;
 }
 
 h1 {
-    font-size: 18pt; 
-    font-weight: bold;
-    color: var(--hn-orange);
-    margin-bottom: 5px;
+    font-size: 24px; 
+    font-weight: 600;
+    color: var(--primary-accent);
+    margin-bottom: var(--spacing-md);
+    letter-spacing: -0.02em;
 }
 
 .container h2 {
-    font-size: 12pt;
-    font-weight: bold;
-    color: var(--hn-orange); 
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--primary-accent); 
     margin: 0;
     padding: 0;
 }
 
 .container p {
-    font-size: 10pt;
-    margin-top: 10px;
-    color: var(--hn-text);
-    line-height: 1.4;
+    font-size: 14px;
+    margin-top: var(--spacing-md);
+    color: var(--text-primary);
+    line-height: 1.6;
 }
 
 .go-home {
     display: inline-block;
-    margin-top: 15px;
-    font-size: 8pt; 
-    padding: 2px 4px; 
-    border: 1px solid #ccc; 
-    background-color: #fff; 
-    color: var(--hn-text);
+    margin-top: var(--spacing-lg);
+    font-size: 13px; 
+    padding: var(--spacing-sm) var(--spacing-md); 
+    border: 1px solid var(--border-color); 
+    background-color: var(--bg-primary); 
+    color: var(--text-primary);
     text-decoration: none;
-    line-height: 1;
+    line-height: 1.4;
     cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s ease;
 }
 
 .go-home:hover {
-    border-color: #888;
+    border-color: var(--primary-accent);
+    background-color: var(--bg-secondary);
+    color: var(--primary-accent);
     text-decoration: none;
 }
 
 .container p a {
-    text-decoration: underline;
-    font-weight: bold;
-    color: var(--hn-orange);
+    text-decoration: none;
+    font-weight: 500;
+    color: var(--primary-accent);
     border: none;
     background: none;
     padding: 0;
     margin: 0;
     font-size: inherit;
+    transition: color 0.2s ease;
+}
+
+.container p a:hover {
+    text-decoration: underline;
 }

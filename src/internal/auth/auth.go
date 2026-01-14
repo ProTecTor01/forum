@@ -97,7 +97,6 @@ func (r *DBRepo) Login(ctx context.Context, email, password string) (*models.Use
 
 func RegisterHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO: need to get rid of it since it's violating DRY
 		userID := utils.GetUserID(r.Context(), r, sm)
 		if userID > 0 {
 			http.Redirect(w, r, "/posts", http.StatusSeeOther)
@@ -180,7 +179,6 @@ func RegisterHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionMana
 
 func LoginHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO: need to get rid of it since it's violating DRY
 		userID := utils.GetUserID(r.Context(), r, sm)
 		if userID > 0 {
 			http.Redirect(w, r, "/posts", http.StatusSeeOther)

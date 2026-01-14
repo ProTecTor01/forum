@@ -15,13 +15,20 @@ print_log(){
 }
 
 if [ -z "$1" ]; then
-  echo "./runsrver.sh <ip:port>"
+  echo "./runserver.sh <ip:port> [--rebuild]"
+  echo "  --rebuild  Force rebuild without cache"
   exit 1
+fi
+
+REBUILD_FLAG=""
+if [ "$2" == "--rebuild" ]; then
+  REBUILD_FLAG="--no-cache"
+  print_log $GREEN "rebuilding" $ORANGE "without cache"
 fi
 
 printf "\n"
 docker rmi $image_name 2>/dev/null || true; print_log $GREEN "cleared image" $ORANGE $image_name
-docker build -t $image_name .; print_log $GREEN "image created" $ORANGE $image_name
+docker build $REBUILD_FLAG -t $image_name .; print_log $GREEN "image created" $ORANGE $image_name
 
 docker ps -a --filter "ancestor=$image_name" -q | xargs -r docker rm; print_log $GREEN "container cleared" $ORANGE $container_name
 
