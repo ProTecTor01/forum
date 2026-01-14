@@ -1,0 +1,72 @@
+{{ define "layout" }}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FORUM</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="stylesheet" href="/static/reset.css">
+    <link rel="stylesheet" href="/static/layout.css">
+    <link rel="stylesheet" href="/static/error.css">
+    <link rel="stylesheet" href="/static/typography.css">
+    <link rel="stylesheet" href="/static/components.css">
+    <link rel="stylesheet" href="/static/forms.css">
+</head>
+<body>
+    <div class="hn-wrapper"> <header class="hn-header">
+            <div class="header-content">
+                <h1 class="logo"><a href="/" class="logo-link">FORUM</a></h1>
+
+                <nav class="main-nav left-nav">
+                    <a href="/posts" class="nav-link">posts</a>
+                    <span class="separator">|</span>
+                    <a href="/categories" class="nav-link">categories</a>
+                    {{ if .UserID }}
+                        <span class="separator">|</span>
+                        <a href="/posts/create" class="nav-link">create post</a>
+                        <span class="separator">|</span>
+                        <a href="/categories/create" class="nav-link">create category</a>
+                    {{ end}}
+                </nav>
+                
+                <nav class="main-nav right-nav">
+                    {{ if .UserID }}
+                        <form method="POST" action="/logout" class="action-form">
+                            <button type="submit" class="nav-link login-info">logout</button>
+                        </form>
+                    {{ else }}
+                        <a href="/login" class="nav-link login-info">login</a>
+                        <span class="separator">|</span>
+                        <a href="/register" class="nav-link login-info">register</a>
+                    {{ end }}
+                </nav>
+            </div>
+        </header>
+        <main class="main-content">
+            {{ template "content" . }}
+        </main>
+
+        <footer class="hn-footer">
+            <div class="footer-separator"></div>
+
+            <a href="https://tomorrow-school.ai/" class="footer-promo-text">
+                Consider applying for Tomorrow School's next Piscine
+            </a>
+
+            <div class="footer-links">
+                <a href="https://github.com/01-edu/public/tree/master/subjects/forum">forum</a>
+                |
+                <a href="https://github.com/01-edu/public/tree/master/subjects/forum/audit">forum audit</a>
+                |
+                <a href="https://news.ycombinator.com/">Hacker News</a>
+                |
+                <a href="https://github.com/kyzyrd">author's Github</a>
+            </div>
+        </footer>
+
+    </div> 
+</body>
+</html>
+{{ end }}

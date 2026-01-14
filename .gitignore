@@ -1,0 +1,27 @@
+# ----------------------------------------
+# Compiled application and packages
+# ----------------------------------------
+# Go build artifacts (the main executable)
+/forum
+
+# Dependency cache
+/vendor/
+
+# Binary files for specific operating systems
+*.exe
+*.dll
+*.so
+*.dylib
+
+# ----------------------------------------
+# OS and Editor Files
+# ----------------------------------------
+# macOS metadata
+.DS_Store
+
+# IDE and editor temporary files
+# Example for VS Code
+.vscode/
+
+# The development database file
+/assets/database/*.db

@@ -1,0 +1,22 @@
+# ----------------------------------------
+# Version Control and IDE Artifacts
+# ----------------------------------------
+**/.git
+**/.gitignore
+**/.DS_Store
+**/.vscode
+
+# ----------------------------------------
+# Local/Development Files to Exclude
+# ----------------------------------------
+# The runserver script is only for local dev/testing
+runserver.sh
+
+# The main executable generated during local development
+/forum
+
+# The development database file
+/assets/database/forum.db
+
+# The entire Go module cache, which can be huge
+/vendor

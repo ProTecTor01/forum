@@ -1,0 +1,47 @@
+:root {
+    --hn-orange: #ff6600;
+    --hn-bg: #f6f6ef;
+    --hn-meta-gray: #828282;
+    --hn-text: #000000;
+    --hn-font: Verdana, Geneva, sans-serif;
+    --hn-font-size: 10pt;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--hn-font);
+    font-size: var(--hn-font-size);
+    color: var(--hn-text);
+    background-color: #ffffff;
+    line-height: 1.2;
+}
+
+a {
+    color: var(--hn-text);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+button {
+    background: none;
+    color: inherit;
+    border: none;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+    outline: none;
+}
+
+.error-message {
+    color: var(--hn-orange);
+    font-weight: bold;
+    margin-top: 8px;
+}

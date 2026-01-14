@@ -1,0 +1,14 @@
+{{ define "content" }}
+<h2>login</h2>
+{{ if .Error }}
+    <p class="error-message">{{ .Error }}</p>
+{{ end }}
+<form method="POST" action="/login" class="hn-form">
+    <label for="email" class="form-label">email:</label>
+    <input type="email" name="email" id="email" maxlength="254" required class="form-input" value="{{ .Email}}">
+    <label for="password" class="form-label">password:</label>
+    <input type="password" name="password" id="password" required class="form-input">
+    <button type="submit" class="button primary-button">login</button>
+</form>
+<p><a href="/register">need an account? register</a></p>
+{{ end }}

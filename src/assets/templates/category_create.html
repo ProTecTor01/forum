@@ -1,0 +1,16 @@
+{{ define "content" }}
+<h2>create category</h2>
+{{ if .Error }}
+    <p class="error-message">{{ .Error }}</p>
+{{ end }}
+{{ if .UserID }}
+    <form method="POST" action="/categories/create">
+        <label for="name">category name:</label>
+        <input type="text" name="name" id="name" maxlength="50" required>
+        <button type="submit">create category</button>
+    </form>
+{{ else }}
+    <p><a href="/login">login to create a category</a></p>
+{{ end }}
+<p><a href="/posts">back to posts</a> | <a href="/categories">categories</a></p>
+{{ end }}

@@ -1,0 +1,14 @@
+{{ define "content" }}
+<h2>categories</h2>
+{{ if .Error }}
+    <p class="error-message">{{ .Error }}</p>
+{{ end }}
+    <div class="category-filter-bar">
+    <span class="filter-label">categories:</span>
+    <a href="/posts" class="category-link">All</a>
+    {{ range .Categories }}
+        <a href="/posts?category={{ .ID }}" class="category-link">{{ .Name }}</a>
+    {{ end }}
+</div>
+<p><a href="/posts">back to posts</a></p>
+{{ end }}
