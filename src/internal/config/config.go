@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -9,6 +10,7 @@ import (
 	"src/internal/auth"
 	"src/internal/categories"
 	"src/internal/comments"
+	"src/internal/hackernews"
 	"src/internal/posts"
 	"src/internal/sessions"
 	"src/internal/utils"
@@ -46,6 +48,11 @@ func Setup() (*Config, error) {
 		return nil, fmt.Errorf("migrate db: %v", err)
 	}
 
+	// Auto-sync Hacker News on first run if database is empty
+	if err := autoSyncIfEmpty(db); err != nil {
+		log.Printf("Auto-sync warning: %v", err)
+	}
+
 	templateStore, err := web.NewTemplateStore()
 	if err != nil {
 		return nil, fmt.Errorf("template store: %v", err)
@@ -69,6 +76,7 @@ func Setup() (*Config, error) {
 	http.HandleFunc("/categories", categories.GetCategoriesHandler(db, templateStore, sessionManager))
 	http.HandleFunc("/categories/create", categories.CreateCategoryHandler(db, templateStore, sessionManager))
 	http.HandleFunc("/likes", posts.LikeHandler(db, templateStore, sessionManager))
+	http.HandleFunc("/sync/hackernews", hackernews.SyncHandler(db, templateStore, sessionManager))
 
 	cfg := &Config{
 		DB:       db,
@@ -99,5 +107,50 @@ func migrate(db *sql.DB) error {
 	}
 
 	_, err = db.Exec(string(schema))
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Apply migration for existing databases
+	migrationPath := "./assets/database/migration_add_hn_fields.sql"
+	migration, err := os.ReadFile(migrationPath)
+	if err == nil {
+		// Try to apply migration, ignore errors if columns already exist
+		db.Exec(string(migration))
+	}
+
+	return nil
+}
+
+//--------------------------------------------------------------------------------------
+
+func autoSyncIfEmpty(db *sql.DB) error {
+	var count int
+	err := db.QueryRow(`SELECT COUNT(*) FROM posts`).Scan(&count)
+	if err != nil {
+		return err
+	}
+
+	// If no posts exist, try to sync
+	if count == 0 {
+		var userID int
+		err := db.QueryRow(`SELECT id FROM users LIMIT 1`).Scan(&userID)
+		if err == sql.ErrNoRows {
+			// No users yet, skip auto-sync
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+
+		log.Println("[auto-sync] Database is empty, syncing Hacker News...")
+		repo := hackernews.NewDBRepo(db)
+		imported, err := repo.SyncHackerNews(context.Background(), userID)
+		if err != nil {
+			return fmt.Errorf("auto-sync failed: %w", err)
+		}
+		log.Printf("[auto-sync] Successfully imported %d stories", imported)
+	}
+
+	return nil
 }

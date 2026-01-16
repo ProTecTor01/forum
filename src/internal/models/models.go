@@ -19,16 +19,18 @@ type User struct {
 //--------------------------------------------------------------------------------------|
 
 type Post struct {
-	ID         int           `db:"id" json:"id"`
-	UserID     int           `db:"user_id" json:"user_id"`
-	Username   string        `db:"username" json:"username"`
-	Title      string        `db:"title" json:"title"`
-	Body       string        `db:"body" json:"body"`
-	CreatedAt  time.Time     `db:"created_at" json:"created_at"`
-	Likes      int           `db:"likes" json:"likes"`
-	Dislikes   int           `db:"dislikes" json:"dislikes"`
-	UserLike   sql.NullInt64 `db:"user_like" json:"user_like"`
-	Categories []Category    `json:"categories"`
+	ID           int           `db:"id" json:"id"`
+	UserID       int           `db:"user_id" json:"user_id"`
+	Username     string        `db:"username" json:"username"`
+	Title        string        `db:"title" json:"title"`
+	Body         string        `db:"body" json:"body"`
+	URL          sql.NullString `db:"url" json:"url,omitempty"`
+	HackerNewsID sql.NullInt64 `db:"hacker_news_id" json:"hacker_news_id,omitempty"`
+	CreatedAt    time.Time     `db:"created_at" json:"created_at"`
+	Likes        int           `db:"likes" json:"likes"`
+	Dislikes     int           `db:"dislikes" json:"dislikes"`
+	UserLike     sql.NullInt64 `db:"user_like" json:"user_like"`
+	Categories   []Category    `json:"categories"`
 }
 
 //--------------------------------------------------------------------------------------|

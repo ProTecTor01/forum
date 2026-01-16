@@ -2,13 +2,13 @@ package sessions
 
 import (
 	"context"
-	"crypto/rand"
 	"database/sql"
-	"encoding/base64"
 	"errors"
 	"src/internal/errmsg"
 	"src/internal/models"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 //--------------------------------------------------------------------------------------|
@@ -59,11 +59,8 @@ func (sm *SessionManager) DeleteSession(ctx context.Context, id string) error {
 //--------------------------------------------------------------------------------------|
 
 func (s *DBSessionStorage) CreateSession(ctx context.Context, userID int, ttl time.Duration) (*models.Session, error) {
-	idBytes := make([]byte, 32)
-	if _, err := rand.Read(idBytes); err != nil {
-		return nil, errors.New("failed to generate session ID")
-	}
-	id := base64.URLEncoding.EncodeToString(idBytes)
+	id := uuid.New()
+	idStr := id.String()
 
 	now := time.Now().UTC().Truncate(time.Second)
 	expiresAt := now.Add(ttl).Truncate(time.Second)
@@ -77,13 +74,13 @@ func (s *DBSessionStorage) CreateSession(ctx context.Context, userID int, ttl ti
 	_, err = s.db.ExecContext(ctx,
 		`INSERT INTO sessions (id, user_id, created_at, expires_at) 
          VALUES (?, ?, ?, ?)`,
-		id, userID, now, expiresAt)
+		idStr, userID, now, expiresAt)
 	if err != nil {
 		return nil, err
 	}
 
 	return &models.Session{
-		ID:        id,
+		ID:        idStr,
 		UserID:    userID,
 		CreatedAt: now,
 		ExpiresAt: expiresAt,

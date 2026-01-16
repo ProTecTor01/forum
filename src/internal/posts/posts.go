@@ -56,12 +56,17 @@ func GetPostsHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionMana
 			return
 		}
 
+		syncMsg := r.URL.Query().Get("sync")
+		errorMsg := r.URL.Query().Get("error")
+
 		ts.RenderTemplate(w, "posts.html", map[string]any{
-			"Posts":          posts,
-			"Categories":     categories,
-			"UserID":         userID,
+			"Posts":       posts,
+			"Categories":  categories,
+			"UserID":      userID,
 			"FilterCategory": categoryID,
-			"FilterType":     filter,
+			"FilterType":  filter,
+			"SyncMessage": syncMsg,
+			"Error":       errorMsg,
 		})
 	}
 }
@@ -344,7 +349,7 @@ func LikeHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionManager)
 
 func (r *DBRepo) GetPosts(ctx context.Context, userID, categoryID int, filter string, limit, offset int) ([]models.Post, error) {
 	query := `
-        SELECT p.id, p.user_id, u.username, p.title, p.body, p.created_at,
+        SELECT p.id, p.user_id, u.username, p.title, p.body, p.url, p.hacker_news_id, p.created_at,
                COALESCE(SUM(CASE WHEN l.value = 1 THEN 1 ELSE 0 END), 0) AS likes,
                COALESCE(SUM(CASE WHEN l.value = -1 THEN 1 ELSE 0 END), 0) AS dislikes,
                COALESCE(SUM(CASE WHEN l.user_id = ? THEN l.value ELSE 0 END), 0) AS user_like
@@ -377,7 +382,7 @@ func (r *DBRepo) GetPosts(ctx context.Context, userID, categoryID int, filter st
 	var posts []models.Post
 	for rows.Next() {
 		var p models.Post
-		if err := rows.Scan(&p.ID, &p.UserID, &p.Username, &p.Title, &p.Body, &p.CreatedAt, &p.Likes, &p.Dislikes, &p.UserLike); err != nil {
+		if err := rows.Scan(&p.ID, &p.UserID, &p.Username, &p.Title, &p.Body, &p.URL, &p.HackerNewsID, &p.CreatedAt, &p.Likes, &p.Dislikes, &p.UserLike); err != nil {
 			return nil, err
 		}
 		posts = append(posts, p)
@@ -395,7 +400,7 @@ func (r *DBRepo) GetPosts(ctx context.Context, userID, categoryID int, filter st
 func (r *DBRepo) GetPost(ctx context.Context, postID, userID int) (*models.Post, error) {
 	var p models.Post
 	err := r.db.QueryRowContext(ctx,
-		`SELECT p.id, p.user_id, u.username, p.title, p.body, p.created_at,
+		`SELECT p.id, p.user_id, u.username, p.title, p.body, p.url, p.hacker_news_id, p.created_at,
                 COALESCE(SUM(CASE WHEN l.value = 1 THEN 1 ELSE 0 END), 0) AS likes,
                 COALESCE(SUM(CASE WHEN l.value = -1 THEN 1 ELSE 0 END), 0) AS dislikes,
                 COALESCE(SUM(CASE WHEN l.user_id = ? THEN l.value ELSE 0 END), 0) AS user_like
@@ -404,7 +409,7 @@ func (r *DBRepo) GetPost(ctx context.Context, postID, userID int) (*models.Post,
          LEFT JOIN likes l ON l.target_id = p.id AND l.target_type = 'post'
          WHERE p.id = ?
          GROUP BY p.id`, userID, postID).Scan(
-		&p.ID, &p.UserID, &p.Username, &p.Title, &p.Body, &p.CreatedAt, &p.Likes, &p.Dislikes, &p.UserLike)
+		&p.ID, &p.UserID, &p.Username, &p.Title, &p.Body, &p.URL, &p.HackerNewsID, &p.CreatedAt, &p.Likes, &p.Dislikes, &p.UserLike)
 	if err != nil {
 		return nil, err
 	}

@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS posts (
     user_id INTEGER NOT NULL,
     title TEXT NOT NULL CHECK(length(TRIM(title)) BETWEEN 1 AND 200),
     body TEXT NOT NULL CHECK(length(TRIM(body)) BETWEEN 1 AND 3000),
+    url TEXT,
+    hacker_news_id INTEGER UNIQUE,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );

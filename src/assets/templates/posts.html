@@ -4,6 +4,15 @@
     {{ if .Error }}
         <p class="error-message">{{ .Error }}</p>
     {{ end }}
+    {{ if .SyncMessage }}
+        <p class="success-message">{{ .SyncMessage }}</p>
+    {{ end }}
+    
+    <div class="sync-section">
+        <form method="POST" action="/sync/hackernews" class="sync-form">
+            <button type="submit" class="button sync-button">Sync Hacker News</button>
+        </form>
+    </div>
     
     <form method="GET" action="/posts" class="filter-form">
         <label for="category" class="form-label">category:</label>
