@@ -15,6 +15,7 @@ var (
 	ErrParentCommentNotFound = errors.New("parent comment not found")
 	ErrCommentDepthExceeded  = errors.New("comment depth limit exceeded")
 	ErrUniqueConstraint      = errors.New("unique constraint violation")
+	ErrUnauthorized          = errors.New("unauthorized")
 )
 
 var (

@@ -206,6 +206,11 @@ func CreatePostHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionMa
 
 		post, err := repo.CreatePost(r.Context(), userID, title, body, categoryIDs)
 		if err != nil {
+			if strings.Contains(err.Error(), "FOREIGN KEY constraint failed") {
+				w.WriteHeader(http.StatusBadRequest)
+				renderForm(w, "Invalid category selected", title, body, categoryIDs)
+				return
+			}
 			web.InternalServerError(w, r, ts, err, userID)
 			return
 		}
