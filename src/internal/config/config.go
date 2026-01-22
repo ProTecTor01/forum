@@ -62,6 +62,10 @@ func Setup() (*Config, error) {
 
 	http.Handle("/static/", http.StripPrefix("/static/", web.FileServer()))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			web.NotFound(w, r, templateStore, utils.GetUserID(r.Context(), r, sessionManager))
+			return
+		}
 		http.Redirect(w, r, "/posts", http.StatusSeeOther)
 	})
 	http.HandleFunc("/register", auth.RegisterHandler(db, templateStore, sessionManager))

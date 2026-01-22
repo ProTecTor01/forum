@@ -173,6 +173,10 @@ func DeleteCommentHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.Sessio
 				web.NotFound(w, r, ts, userID)
 				return
 			}
+			if errors.Is(err, errmsg.ErrCommentForbidden) {
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
+			}
 
 			web.InternalServerError(w, r, ts, err, userID)
 			return
@@ -227,6 +231,10 @@ func (r *DBRepo) DeleteComment(ctx context.Context, commentID, userID int) (int,
 	if err != nil {
 		log.Printf("Error retrieving details for comment %d: %v", commentID, err)
 		return 0, fmt.Errorf("database query error: %w", err)
+	}
+
+	if commentUserID != userID {
+		return 0, errmsg.ErrCommentForbidden
 	}
 
 	_, err = r.db.ExecContext(ctx, `DELETE FROM comments WHERE id = ?`, commentID)
