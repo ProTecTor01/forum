@@ -12,6 +12,7 @@ var (
 	ErrSessionNotFound       = errors.New("session not found")
 	ErrPostNotFound          = errors.New("post not found")
 	ErrCommentNotFound       = errors.New("comment not found")
+	ErrCommentForbidden      = errors.New("comment delete forbidden")
 	ErrParentCommentNotFound = errors.New("parent comment not found")
 	ErrCommentDepthExceeded  = errors.New("comment depth limit exceeded")
 	ErrUniqueConstraint      = errors.New("unique constraint violation")

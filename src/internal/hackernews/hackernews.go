@@ -12,6 +12,7 @@ import (
 
 	"src/internal/categories"
 	"src/internal/sessions"
+	"src/internal/utils"
 	"src/internal/web"
 )
 
@@ -269,6 +270,12 @@ func fetchItem(id int) (*HNItem, error) {
 
 func SyncHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID := utils.GetUserID(r.Context(), r, sm)
+		if userID == 0 {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
