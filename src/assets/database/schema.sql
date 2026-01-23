@@ -25,6 +25,7 @@ CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
 CREATE TABLE IF NOT EXISTS posts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
+    author TEXT,
     title TEXT NOT NULL CHECK(length(TRIM(title)) BETWEEN 1 AND 200),
     body TEXT NOT NULL CHECK(length(TRIM(body)) BETWEEN 1 AND 3000),
     url TEXT,

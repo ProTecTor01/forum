@@ -119,6 +119,13 @@ func migrate(db *sql.DB) error {
 		db.Exec(string(migration))
 	}
 
+	authorMigrationPath := "./assets/database/migration_add_post_author.sql"
+	authorMigration, err := os.ReadFile(authorMigrationPath)
+	if err == nil {
+		// Try to apply migration, ignore errors if column already exists
+		db.Exec(string(authorMigration))
+	}
+
 	return nil
 }
 

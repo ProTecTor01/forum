@@ -4,10 +4,10 @@
         <span class="author"><strong>{{ .Username }}</strong></span>
         <span class="age"> ({{ .CreatedAt.Format "2006-01-02 15:04" }})</span>
         
+        <span class="separator">|</span>
         {{ if $.ViewerID }}
-            <span class="separator">|</span>
             {{ template "like_dislike_comment" . }}
-            
+
             {{ if eq $.ViewerID .UserID }}
                 <span class="separator">|</span>
                 <form method="POST" action="/comments/delete" class="action-form">
@@ -15,6 +15,8 @@
                     <button type="submit" class="action-link delete-button">delete</button>
                 </form>
             {{ end }}
+        {{ else }}
+            <span class="comment-votes">up ({{ .Likes }}) | down ({{ .Dislikes }})</span>
         {{ end }}
     </div>
 

@@ -101,7 +101,7 @@ func (r *DBRepo) SyncHackerNews(ctx context.Context, defaultUserID int) (int, er
 			log.Printf("Error ensuring categories: %v", err)
 		}
 
-		postID, err := r.createPostFromHN(ctx, defaultUserID, title, body, item.URL, storyID, createdAt, categoryIDs)
+		postID, err := r.createPostFromHN(ctx, defaultUserID, item.By, title, body, item.URL, storyID, createdAt, categoryIDs)
 		if err != nil {
 			log.Printf("Failed to create post from HN item %d: %v", storyID, err)
 			continue
@@ -125,7 +125,7 @@ func (r *DBRepo) postExists(ctx context.Context, hnID int) (bool, error) {
 
 //--------------------------------------------------------------------------------------|
 
-func (r *DBRepo) createPostFromHN(ctx context.Context, userID int, title, body, url string, hnID int, createdAt time.Time, categoryIDs []int) (int, error) {
+func (r *DBRepo) createPostFromHN(ctx context.Context, userID int, author, title, body, url string, hnID int, createdAt time.Time, categoryIDs []int) (int, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, fmt.Errorf("could not begin transaction: %w", err)
@@ -138,9 +138,9 @@ func (r *DBRepo) createPostFromHN(ctx context.Context, userID int, title, body, 
 	}()
 
 	result, err := tx.ExecContext(ctx,
-		`INSERT INTO posts (user_id, title, body, url, hacker_news_id, created_at) 
-         VALUES (?, ?, ?, ?, ?, ?)`,
-		userID, title, body, url, hnID, createdAt)
+		`INSERT INTO posts (user_id, author, title, body, url, hacker_news_id, created_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		userID, author, title, body, url, hnID, createdAt)
 	if err != nil {
 		return 0, fmt.Errorf("failed to insert post: %w", err)
 	}

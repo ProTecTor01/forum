@@ -349,7 +349,7 @@ func LikeHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionManager)
 
 func (r *DBRepo) GetPosts(ctx context.Context, userID, categoryID int, filter string, limit, offset int) ([]models.Post, error) {
 	query := `
-        SELECT p.id, p.user_id, u.username, p.title, p.body, p.url, p.hacker_news_id, p.created_at,
+        SELECT p.id, p.user_id, COALESCE(p.author, u.username) AS author, p.title, p.body, p.url, p.hacker_news_id, p.created_at,
                COALESCE(SUM(CASE WHEN l.value = 1 THEN 1 ELSE 0 END), 0) AS likes,
                COALESCE(SUM(CASE WHEN l.value = -1 THEN 1 ELSE 0 END), 0) AS dislikes,
                COALESCE(SUM(CASE WHEN l.user_id = ? THEN l.value ELSE 0 END), 0) AS user_like
@@ -400,7 +400,7 @@ func (r *DBRepo) GetPosts(ctx context.Context, userID, categoryID int, filter st
 func (r *DBRepo) GetPost(ctx context.Context, postID, userID int) (*models.Post, error) {
 	var p models.Post
 	err := r.db.QueryRowContext(ctx,
-		`SELECT p.id, p.user_id, u.username, p.title, p.body, p.url, p.hacker_news_id, p.created_at,
+		`SELECT p.id, p.user_id, COALESCE(p.author, u.username) AS author, p.title, p.body, p.url, p.hacker_news_id, p.created_at,
                 COALESCE(SUM(CASE WHEN l.value = 1 THEN 1 ELSE 0 END), 0) AS likes,
                 COALESCE(SUM(CASE WHEN l.value = -1 THEN 1 ELSE 0 END), 0) AS dislikes,
                 COALESCE(SUM(CASE WHEN l.user_id = ? THEN l.value ELSE 0 END), 0) AS user_like
