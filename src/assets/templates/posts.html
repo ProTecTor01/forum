@@ -48,8 +48,8 @@
                     <form method="POST" action="/likes" class="upvote-form">
                         <input type="hidden" name="target_id" value="{{ $post.ID }}">
                         <input type="hidden" name="target_type" value="post">
-                        <input type="hidden" name="value" value="1">
-                        <button type="submit" class="vote-button {{ if $is_upvoted }}active{{ end }}" {{ if $is_upvoted }}disabled{{ end }} title="upvote"></button>
+                        <input type="hidden" name="value" value="{{ if $is_upvoted }}0{{ else }}1{{ end }}">
+                        <button type="submit" class="vote-button {{ if $is_upvoted }}active{{ end }}" title="upvote"></button>
                     </form>
                 {{ end }}
             </div>
@@ -63,28 +63,39 @@
                 </div>
                 
                 <div class="post-meta-row">
-                    <span class="score">{{ $post.Likes }} points</span> by <span class="author">{{ $post.Username }}</span>
+                    <span class="author">{{ $post.Username }}</span>
                     <span class="age"><a href="/posts/{{ $post.ID }}">{{ $post.CreatedAt.Format "2006-01-02 15:04" }}</a></span>
                     
                     <span class="separator">|</span>
                     <a href="/posts/{{ $post.ID }}" class="comments-link">discuss</a>
-                    
+
+                    <span class="separator">|</span>
                     {{ if $.UserID }}
+                        <form method="POST" action="/likes" class="action-form">
+                            <input type="hidden" name="target_id" value="{{ $post.ID }}">
+                            <input type="hidden" name="target_type" value="post">
+                            <input type="hidden" name="value" value="{{ if $is_upvoted }}0{{ else }}1{{ end }}">
+                            <button type="submit" class="action-link vote-action upvote-text-link {{ if $is_upvoted }}active-vote{{ end }}">up ({{ $post.Likes }})</button>
+                        </form>
                         <span class="separator">|</span>
                         <form method="POST" action="/likes" class="action-form">
                             <input type="hidden" name="target_id" value="{{ $post.ID }}">
                             <input type="hidden" name="target_type" value="post">
-                            <input type="hidden" name="value" value="-1">
-                            <button type="submit" class="action-link dislike-button {{ if $is_downvoted }}active-vote{{ end }}" {{ if $is_downvoted }}disabled{{ end }}>down ({{ $post.Dislikes }})</button>
+                            <input type="hidden" name="value" value="{{ if $is_downvoted }}0{{ else }}-1{{ end }}">
+                            <button type="submit" class="action-link dislike-button {{ if $is_downvoted }}active-vote{{ end }}">down ({{ $post.Dislikes }})</button>
                         </form>
-                        
-                        {{ if eq $.UserID $post.UserID }}
-                            <span class="separator">|</span>
-                            <form method="POST" action="/posts/delete" class="action-form">
-                                <input type="hidden" name="post_id" value="{{ $post.ID }}">
-                                <button type="submit" class="action-link delete-button">delete</button>
-                            </form>
-                        {{ end }}
+                    {{ else }}
+                        <span class="score">up ({{ $post.Likes }})</span>
+                        <span class="separator">|</span>
+                        <span class="score">down ({{ $post.Dislikes }})</span>
+                    {{ end }}
+
+                    {{ if and $.UserID (eq $.UserID $post.UserID) }}
+                        <span class="separator">|</span>
+                        <form method="POST" action="/posts/delete" class="action-form">
+                            <input type="hidden" name="post_id" value="{{ $post.ID }}">
+                            <button type="submit" class="action-link delete-button">delete</button>
+                        </form>
                     {{ end }}
                 </div>
             </div>

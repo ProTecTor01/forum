@@ -10,8 +10,7 @@
         <input type="hidden" name="target_type" value="post">
         <input type="hidden" name="value" value="{{ if eq $voteValue 1 }}0{{ else }}1{{ end }}">
         <button type="submit" 
-            class="action-link vote-action upvote-text-link {{ if eq $voteValue 1 }}active-vote{{ end }}" 
-            {{ if eq $voteValue -1 }}disabled{{ end }}>
+            class="action-link vote-action upvote-text-link {{ if eq $voteValue 1 }}active-vote{{ end }}">
             up ({{ .Likes }})
         </button>
     </form>
@@ -24,8 +23,7 @@
         {{/* If already downvoted (-1), send 0 to undo. Otherwise, send -1 to downvote. */}}
         <input type="hidden" name="value" value="{{ if eq $voteValue -1 }}0{{ else }}-1{{ end }}">
         <button type="submit" 
-            class="action-link vote-action dislike-text-link {{ if eq $voteValue -1 }}active-vote{{ end }}" 
-            {{ if eq $voteValue 1 }}disabled{{ end }}>
+            class="action-link vote-action dislike-text-link {{ if eq $voteValue -1 }}active-vote{{ end }}">
             down ({{ .Dislikes }})
         </button>
     </form>
@@ -45,8 +43,7 @@
         <input type="hidden" name="value" value="{{ if eq $voteValue 1 }}0{{ else }}1{{ end }}">
         
         <button type="submit" 
-            class="action-link vote-action upvote-text-link {{ if eq $voteValue 1 }}active-vote{{ end }}" 
-            {{ if eq $voteValue -1 }}disabled{{ end }}>
+            class="action-link vote-action upvote-text-link {{ if eq $voteValue 1 }}active-vote{{ end }}">
             up ({{ .Likes }})
         </button>
     </form>
@@ -58,8 +55,7 @@
         <input type="hidden" name="target_type" value="comment">
         <input type="hidden" name="value" value="{{ if eq $voteValue -1 }}0{{ else }}-1{{ end }}">
         <button type="submit" 
-            class="action-link vote-action dislike-text-link {{ if eq $voteValue -1 }}active-vote{{ end }}" 
-            {{ if eq $voteValue 1 }}disabled{{ end }}>
+            class="action-link vote-action dislike-text-link {{ if eq $voteValue -1 }}active-vote{{ end }}">
             down ({{ .Dislikes }})
         </button>
     </form>

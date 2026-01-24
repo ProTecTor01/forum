@@ -55,7 +55,7 @@ func CreateCommentHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.Sessio
 		}
 		body := r.FormValue("body")
 
-		renderForm := func(w http.ResponseWriter, errorMsg, body string, postID, userID int) {
+		renderForm := func(w http.ResponseWriter, errorMsg, body string, postID, userID int, status int) {
 			repo := posts.NewDBRepo(db)
 			post, err := repo.GetPost(r.Context(), postID, userID)
 			if err != nil {
@@ -94,6 +94,9 @@ func CreateCommentHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.Sessio
 			}
 
 			organized := posts.OrganizeComments(comments, posts.MaxCommentDepth)
+			if status > 0 {
+				w.WriteHeader(status)
+			}
 			ts.RenderTemplate(w, "post.html", map[string]any{
 				"Post":     post,
 				"Comments": organized,
@@ -104,7 +107,7 @@ func CreateCommentHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.Sessio
 		}
 
 		if err := errmsg.ValidateCommentBody(body); err != nil {
-			renderForm(w, err.Error(), body, postID, userID)
+			renderForm(w, err.Error(), body, postID, userID, http.StatusBadRequest)
 			return
 		}
 

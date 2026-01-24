@@ -28,6 +28,10 @@ func NewDBRepo(db *sql.DB) *DBRepo {
 
 func GetCategoriesHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 
 		repo := NewDBRepo(db)
 		categories, err := repo.GetCategories(r.Context())
@@ -71,6 +75,7 @@ func CreateCategoryHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.Sessi
 
 		name := r.FormValue("name")
 		if err := errmsg.ValidateCategoryName(name); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
 			ts.RenderTemplate(w, "category_create.html", map[string]any{
 				"Error":  err.Error(),
 				"UserID": userID,
@@ -82,6 +87,7 @@ func CreateCategoryHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.Sessi
 		_, err := repo.CreateCategory(r.Context(), name)
 		if err != nil {
 			if errors.Is(err, errmsg.ErrUniqueConstraint) {
+				w.WriteHeader(http.StatusBadRequest)
 				ts.RenderTemplate(w, "category_create.html", map[string]any{
 					"Error":  "A category with this name already exists",
 					"UserID": userID,

@@ -36,6 +36,10 @@ func NewDBRepo(db *sql.DB) *DBRepo {
 
 func GetPostsHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 
 		userID := utils.GetUserID(r.Context(), r, sm)
 		limit, offset := web.GetLimitOffset(r)
@@ -60,13 +64,13 @@ func GetPostsHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionMana
 		errorMsg := r.URL.Query().Get("error")
 
 		ts.RenderTemplate(w, "posts.html", map[string]any{
-			"Posts":       posts,
-			"Categories":  categories,
-			"UserID":      userID,
+			"Posts":          posts,
+			"Categories":     categories,
+			"UserID":         userID,
 			"FilterCategory": categoryID,
-			"FilterType":  filter,
-			"SyncMessage": syncMsg,
-			"Error":       errorMsg,
+			"FilterType":     filter,
+			"SyncMessage":    syncMsg,
+			"Error":          errorMsg,
 		})
 	}
 }
@@ -75,6 +79,10 @@ func GetPostsHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionMana
 
 func GetPostHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 
 		parts := strings.Split(r.URL.Path, "/")
 		if len(parts) < 3 {
@@ -160,12 +168,15 @@ func CreatePostHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionMa
 			return
 		}
 
-		renderForm := func(w http.ResponseWriter, errorMsg, title, body string, categoryIDs []int) {
+		renderForm := func(w http.ResponseWriter, errorMsg, title, body string, categoryIDs []int, status int) {
 			selectedCategories := make(map[int]bool)
 			for _, id := range categoryIDs {
 				selectedCategories[id] = true
 			}
 
+			if status > 0 {
+				w.WriteHeader(status)
+			}
 			ts.RenderTemplate(w, "create_post.html", map[string]any{
 				"Error":              errorMsg,
 				"Categories":         categories,
@@ -177,7 +188,7 @@ func CreatePostHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionMa
 		}
 
 		if r.Method == http.MethodGet {
-			renderForm(w, "", "", "", nil)
+			renderForm(w, "", "", "", nil, 0)
 			return
 		}
 
@@ -195,12 +206,17 @@ func CreatePostHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionMa
 		body := r.FormValue("body")
 		categoryIDs := parseCategoryIDs(r.Form["category_ids"])
 
+		if len(categoryIDs) == 0 {
+			renderForm(w, "Please select at least one category", title, body, categoryIDs, http.StatusBadRequest)
+			return
+		}
+
 		if err := errmsg.ValidatePostTitle(title); err != nil {
-			renderForm(w, err.Error(), title, body, categoryIDs)
+			renderForm(w, err.Error(), title, body, categoryIDs, http.StatusBadRequest)
 			return
 		}
 		if err := errmsg.ValidatePostBody(body); err != nil {
-			renderForm(w, err.Error(), title, body, categoryIDs)
+			renderForm(w, err.Error(), title, body, categoryIDs, http.StatusBadRequest)
 			return
 		}
 

@@ -120,7 +120,10 @@ func RegisterHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionMana
 		username := r.FormValue("username")
 		password := r.FormValue("password")
 
-		renderForm := func(errorMsg string) {
+		renderForm := func(errorMsg string, status int) {
+			if status > 0 {
+				w.WriteHeader(status)
+			}
 			ts.RenderTemplate(w, "register.html", map[string]any{
 				"Error":    errorMsg,
 				"Email":    email,
@@ -129,15 +132,15 @@ func RegisterHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionMana
 		}
 
 		if err := errmsg.ValidateEmail(email); err != nil {
-			renderForm(err.Error())
+			renderForm(err.Error(), http.StatusBadRequest)
 			return
 		}
 		if err := errmsg.ValidateUsername(username); err != nil {
-			renderForm(err.Error())
+			renderForm(err.Error(), http.StatusBadRequest)
 			return
 		}
 		if err := errmsg.ValidatePassword(password); err != nil {
-			renderForm(err.Error())
+			renderForm(err.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -145,22 +148,20 @@ func RegisterHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionMana
 		_, err := repo.Register(r.Context(), email, username, password)
 
 		if err != nil {
-			errMsg := "Registration failed due to a server error"
-
 			if errors.Is(err, errmsg.ErrUserAlreadyExists) {
-				errMsg = "Email or username is already taken"
-			} else {
-				log.Printf("Registration error: %v", err)
+				renderForm("Email or username is already taken", http.StatusBadRequest)
+				return
 			}
 
-			renderForm(errMsg)
+			log.Printf("Registration error: %v", err)
+			web.InternalServerError(w, r, ts, err, 0)
 			return
 		}
 
 		user, err := repo.Login(r.Context(), email, password)
 		if err != nil {
 			log.Printf("Auto-login failed after registration for %s: %v", email, err)
-			renderForm("Registration successful, but auto-login failed. Please try logging in manually.")
+			web.InternalServerError(w, r, ts, err, 0)
 			return
 		}
 
@@ -202,7 +203,10 @@ func LoginHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionManager
 		email := r.FormValue("email")
 		password := r.FormValue("password")
 
-		renderForm := func(errorMsg string) {
+		renderForm := func(errorMsg string, status int) {
+			if status > 0 {
+				w.WriteHeader(status)
+			}
 			ts.RenderTemplate(w, "login.html", map[string]any{
 				"Error": errorMsg,
 				"Email": email,
@@ -210,7 +214,7 @@ func LoginHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionManager
 		}
 
 		if err := errmsg.ValidateEmail(email); err != nil {
-			renderForm(err.Error())
+			renderForm(err.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -218,10 +222,13 @@ func LoginHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionManager
 		user, err := repo.Login(r.Context(), email, password)
 
 		if err != nil {
-			if !errors.Is(err, errmsg.ErrInvalidCredentials) {
-				log.Printf("Login lookup/db error for email '%s': %v", email, err)
+			if errors.Is(err, errmsg.ErrInvalidCredentials) {
+				renderForm("Invalid credentials", http.StatusBadRequest)
+				return
 			}
-			renderForm("Invalid credentials")
+
+			log.Printf("Login lookup/db error for email '%s': %v", email, err)
+			web.InternalServerError(w, r, ts, err, 0)
 			return
 		}
 
