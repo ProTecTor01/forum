@@ -2,6 +2,8 @@
 
 container_name="forum"
 image_name="forum-image"
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+db_mount="$script_dir/assets/database"
 
 GREEN="\033[1;38;2;0;255;0m"
 ORANGE="\033[1;38;2;255;128;0m"
@@ -27,12 +29,22 @@ if [ "$2" == "--rebuild" ]; then
 fi
 
 printf "\n"
-docker rmi $image_name 2>/dev/null || true; print_log $GREEN "cleared image" $ORANGE $image_name
 docker build $REBUILD_FLAG -t $image_name .; print_log $GREEN "image created" $ORANGE $image_name
 
-docker ps -a --filter "ancestor=$image_name" -q | xargs -r docker rm; print_log $GREEN "container cleared" $ORANGE $container_name
+mkdir -p "$db_mount"
+
+if docker ps -a --format "{{.Names}}" | grep -qx "$container_name"; then
+  if docker ps --format "{{.Names}}" | grep -qx "$container_name"; then
+    docker stop "$container_name" >/dev/null
+  fi
+  docker rm "$container_name" >/dev/null
+fi
 
 print_log $GREEN "running" $ORANGE $container_name
-docker run --rm -it -p $1:8080 -v .:/forum/src --name $container_name $image_name
-docker rmi $image_name
-print_log $GREEN "complete"
+docker run -it -p $1:8080 -e DB_PATH=/forum/assets/database/forum.db -v "$db_mount":/forum/assets/database -v "$script_dir":/forum/src --name $container_name $image_name
+
+print_log $GREEN "containers" $ORANGE "(docker ps -a)"
+docker ps -a
+print_log $GREEN "images" $ORANGE "(docker images)"
+docker images
+print_log $GREEN "complete" $ORANGE ""
