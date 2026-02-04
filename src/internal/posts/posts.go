@@ -5,17 +5,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
-	"src/internal/categories"
 	"src/internal/errmsg"
 	"src/internal/models"
-	"src/internal/sessions"
-	"src/internal/utils"
-	"src/internal/web"
 )
 
 //--------------------------------------------------------------------------------------|
@@ -34,338 +29,9 @@ func NewDBRepo(db *sql.DB) *DBRepo {
 
 //--------------------------------------------------------------------------------------|
 
-func GetPostsHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionManager) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		userID := utils.GetUserID(r.Context(), r, sm)
-		limit, offset := web.GetLimitOffset(r)
-		categoryID, _ := strconv.Atoi(r.URL.Query().Get("category"))
-		filter := r.URL.Query().Get("filter")
-
-		repo := NewDBRepo(db)
-		posts, err := repo.GetPosts(r.Context(), userID, categoryID, filter, limit, offset)
-		if err != nil {
-			web.InternalServerError(w, r, ts, err, userID)
-			return
-		}
-
-		categoriesRepo := categories.NewDBRepo(db)
-		categories, err := categoriesRepo.GetCategories(r.Context())
-		if err != nil {
-			web.InternalServerError(w, r, ts, err, userID)
-			return
-		}
-
-		syncMsg := r.URL.Query().Get("sync")
-		errorMsg := r.URL.Query().Get("error")
-
-		ts.RenderTemplate(w, "posts.html", map[string]any{
-			"Posts":          posts,
-			"Categories":     categories,
-			"UserID":         userID,
-			"FilterCategory": categoryID,
-			"FilterType":     filter,
-			"SyncMessage":    syncMsg,
-			"Error":          errorMsg,
-		})
-	}
-}
-
-//--------------------------------------------------------------------------------------|
-
-func GetPostHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionManager) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		parts := strings.Split(r.URL.Path, "/")
-		if len(parts) < 3 {
-			http.Error(w, "Invalid post ID", http.StatusBadRequest)
-			return
-		}
-
-		postID, err := strconv.Atoi(parts[2])
-		if err != nil {
-			http.Error(w, "Invalid post ID", http.StatusBadRequest)
-			return
-		}
-
-		userID := utils.GetUserID(r.Context(), r, sm)
-		repo := NewDBRepo(db)
-		post, err := repo.GetPost(r.Context(), postID, userID)
-
-		if errors.Is(err, sql.ErrNoRows) {
-			web.NotFound(w, r, ts, userID)
-			return
-		}
-		if err != nil {
-			web.InternalServerError(w, r, ts, err, userID)
-			return
-		}
-
-		rows, err := db.QueryContext(r.Context(),
-			`SELECT c.id, c.user_id, c.post_id, u.username, c.body, c.created_at, c.parent_id, c.depth,
-                    COALESCE(SUM(CASE WHEN l.value = 1 THEN 1 ELSE 0 END), 0) AS likes,
-                    COALESCE(SUM(CASE WHEN l.value = -1 THEN 1 ELSE 0 END), 0) AS dislikes,
-                    COALESCE(SUM(CASE WHEN l.user_id = ? THEN l.value ELSE 0 END), 0) AS user_like
-             FROM comments c
-             JOIN users u ON c.user_id = u.id
-             LEFT JOIN likes l ON l.target_id = c.id AND l.target_type = 'comment'
-             WHERE c.post_id = ?
-             GROUP BY c.id
-             ORDER BY c.created_at ASC`, userID, postID)
-		if err != nil {
-			web.InternalServerError(w, r, ts, err, userID)
-			return
-		}
-		defer rows.Close()
-
-		var comments []models.Comment
-		for rows.Next() {
-			var c models.Comment
-			var parentID sql.NullInt64
-			if err := rows.Scan(&c.ID, &c.UserID, &c.PostID, &c.Username, &c.Body, &c.CreatedAt, &parentID, &c.Depth, &c.Likes, &c.Dislikes, &c.UserLike); err != nil {
-				web.InternalServerError(w, r, ts, err, userID)
-				return
-			}
-
-			c.ViewerID = userID
-			c.ParentID = parentID
-			comments = append(comments, c)
-		}
-
-		organizedComments := OrganizeComments(comments, MaxCommentDepth)
-		ts.RenderTemplate(w, "post.html", map[string]any{
-			"Post":     post,
-			"Comments": organizedComments,
-			"UserID":   userID,
-		})
-	}
-}
-
-//--------------------------------------------------------------------------------------|
-
-func CreatePostHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionManager) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		userID := utils.GetUserID(r.Context(), r, sm)
-		if userID == 0 {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-
-		repo := NewDBRepo(db)
-
-		categoriesRepo := categories.NewDBRepo(db)
-		categories, err := categoriesRepo.GetCategories(r.Context())
-		if err != nil {
-			web.InternalServerError(w, r, ts, err, userID)
-			return
-		}
-
-		renderForm := func(w http.ResponseWriter, errorMsg, title, body string, categoryIDs []int, status int) {
-			selectedCategories := make(map[int]bool)
-			for _, id := range categoryIDs {
-				selectedCategories[id] = true
-			}
-
-			if status > 0 {
-				w.WriteHeader(status)
-			}
-			ts.RenderTemplate(w, "create_post.html", map[string]any{
-				"Error":              errorMsg,
-				"Categories":         categories,
-				"UserID":             userID,
-				"Title":              title,
-				"Body":               body,
-				"SelectedCategories": selectedCategories,
-			})
-		}
-
-		if r.Method == http.MethodGet {
-			renderForm(w, "", "", "", nil, 0)
-			return
-		}
-
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		if err := r.ParseForm(); err != nil {
-			http.Error(w, "Invalid form data", http.StatusBadRequest)
-			return
-		}
-
-		title := r.FormValue("title")
-		body := r.FormValue("body")
-		categoryIDs := parseCategoryIDs(r.Form["category_ids"])
-
-		if len(categoryIDs) == 0 {
-			renderForm(w, "Please select at least one category", title, body, categoryIDs, http.StatusBadRequest)
-			return
-		}
-
-		if err := errmsg.ValidatePostTitle(title); err != nil {
-			renderForm(w, err.Error(), title, body, categoryIDs, http.StatusBadRequest)
-			return
-		}
-		if err := errmsg.ValidatePostBody(body); err != nil {
-			renderForm(w, err.Error(), title, body, categoryIDs, http.StatusBadRequest)
-			return
-		}
-
-		post, err := repo.CreatePost(r.Context(), userID, title, body, categoryIDs)
-		if err != nil {
-			web.InternalServerError(w, r, ts, err, userID)
-			return
-		}
-
-		http.Redirect(w, r, fmt.Sprintf("/posts/%d", post.ID), http.StatusSeeOther)
-	}
-}
-
-//--------------------------------------------------------------------------------------|
-
-func DeletePostHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionManager) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		userID := utils.GetUserID(r.Context(), r, sm)
-		if userID == 0 {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		if err := r.ParseForm(); err != nil {
-			http.Error(w, "Invalid form data", http.StatusBadRequest)
-			return
-		}
-
-		postID, err := strconv.Atoi(r.FormValue("post_id"))
-		if err != nil {
-			http.Error(w, "Invalid post ID", http.StatusBadRequest)
-			return
-		}
-
-		repo := NewDBRepo(db)
-		if err := repo.DeletePost(r.Context(), postID, userID); err != nil {
-			if errors.Is(err, errmsg.ErrPostNotFound) {
-				web.NotFound(w, r, ts, userID)
-				return
-			}
-			web.InternalServerError(w, r, ts, err, userID)
-			return
-		}
-		http.Redirect(w, r, "/posts", http.StatusSeeOther)
-	}
-}
-
-//--------------------------------------------------------------------------------------|
-
-func LikeHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionManager) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		userID := utils.GetUserID(r.Context(), r, sm)
-		if userID == 0 {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		if err := r.ParseForm(); err != nil {
-			http.Error(w, "Invalid form data", http.StatusBadRequest)
-			return
-		}
-
-		targetID, err := strconv.Atoi(r.FormValue("target_id"))
-		if err != nil {
-			http.Error(w, "Invalid target ID", http.StatusBadRequest)
-			return
-		}
-		targetType := r.FormValue("target_type")
-		value, err := strconv.Atoi(r.FormValue("value"))
-
-		if err != nil || (value != 1 && value != -1 && value != 0) {
-			http.Error(w, "Invalid value", http.StatusBadRequest)
-			return
-		}
-
-		if targetType != "post" && targetType != "comment" {
-			http.Error(w, "Invalid target type", http.StatusBadRequest)
-			return
-		}
-
-		var authorID int
-		var query string
-		switch targetType {
-		case "post":
-			query = `SELECT user_id FROM posts WHERE id = ?`
-		case "comment":
-			query = `SELECT user_id FROM comments WHERE id = ?`
-		}
-		err = db.QueryRowContext(r.Context(), query, targetID).Scan(&authorID)
-		if err == sql.ErrNoRows {
-			web.NotFound(w, r, ts, userID)
-			return
-		}
-		if err != nil {
-			web.InternalServerError(w, r, ts, err, userID)
-			return
-		}
-
-		var execErr error
-		if value == 0 {
-			_, execErr = db.ExecContext(r.Context(),
-				`DELETE FROM likes 
-                 WHERE user_id = ? AND target_id = ? AND target_type = ?`,
-				userID, targetID, targetType)
-		} else {
-			_, execErr = db.ExecContext(r.Context(),
-				`INSERT INTO likes (user_id, target_id, target_type, value)
-                 VALUES (?, ?, ?, ?)
-                 ON CONFLICT(user_id, target_id, target_type)
-                 DO UPDATE SET value = ?`,
-				userID, targetID, targetType, value, value)
-		}
-
-		if execErr != nil {
-			web.InternalServerError(w, r, ts, execErr, userID)
-			return
-		}
-
-		var redirectURL string
-		if targetType == "post" {
-			redirectURL = fmt.Sprintf("/posts/%d", targetID)
-		} else {
-			var postID int
-			err := db.QueryRowContext(r.Context(), `SELECT post_id FROM comments WHERE id = ?`, targetID).Scan(&postID)
-			if err != nil {
-				redirectURL = "/posts"
-			} else {
-				redirectURL = fmt.Sprintf("/posts/%d", postID)
-			}
-		}
-
-		http.Redirect(w, r, redirectURL, http.StatusSeeOther)
-	}
-}
-
-//--------------------------------------------------------------------------------------|
-
 func (r *DBRepo) GetPosts(ctx context.Context, userID, categoryID int, filter string, limit, offset int) ([]models.Post, error) {
 	query := `
-        SELECT p.id, p.user_id, COALESCE(p.author, u.username) AS author, p.title, p.body, p.url, p.hacker_news_id, p.created_at,
+        SELECT p.id, p.user_id, COALESCE(p.author, u.username) AS author, p.title, p.body, p.created_at,
                COALESCE(SUM(CASE WHEN l.value = 1 THEN 1 ELSE 0 END), 0) AS likes,
                COALESCE(SUM(CASE WHEN l.value = -1 THEN 1 ELSE 0 END), 0) AS dislikes,
                COALESCE(SUM(CASE WHEN l.user_id = ? THEN l.value ELSE 0 END), 0) AS user_like
@@ -398,7 +64,7 @@ func (r *DBRepo) GetPosts(ctx context.Context, userID, categoryID int, filter st
 	var posts []models.Post
 	for rows.Next() {
 		var p models.Post
-		if err := rows.Scan(&p.ID, &p.UserID, &p.Username, &p.Title, &p.Body, &p.URL, &p.HackerNewsID, &p.CreatedAt, &p.Likes, &p.Dislikes, &p.UserLike); err != nil {
+		if err := rows.Scan(&p.ID, &p.UserID, &p.Username, &p.Title, &p.Body, &p.CreatedAt, &p.Likes, &p.Dislikes, &p.UserLike); err != nil {
 			return nil, err
 		}
 		posts = append(posts, p)
@@ -416,7 +82,7 @@ func (r *DBRepo) GetPosts(ctx context.Context, userID, categoryID int, filter st
 func (r *DBRepo) GetPost(ctx context.Context, postID, userID int) (*models.Post, error) {
 	var p models.Post
 	err := r.db.QueryRowContext(ctx,
-		`SELECT p.id, p.user_id, COALESCE(p.author, u.username) AS author, p.title, p.body, p.url, p.hacker_news_id, p.created_at,
+		`SELECT p.id, p.user_id, COALESCE(p.author, u.username) AS author, p.title, p.body, p.created_at,
                 COALESCE(SUM(CASE WHEN l.value = 1 THEN 1 ELSE 0 END), 0) AS likes,
                 COALESCE(SUM(CASE WHEN l.value = -1 THEN 1 ELSE 0 END), 0) AS dislikes,
                 COALESCE(SUM(CASE WHEN l.user_id = ? THEN l.value ELSE 0 END), 0) AS user_like
@@ -425,7 +91,7 @@ func (r *DBRepo) GetPost(ctx context.Context, postID, userID int) (*models.Post,
          LEFT JOIN likes l ON l.target_id = p.id AND l.target_type = 'post'
          WHERE p.id = ?
          GROUP BY p.id`, userID, postID).Scan(
-		&p.ID, &p.UserID, &p.Username, &p.Title, &p.Body, &p.URL, &p.HackerNewsID, &p.CreatedAt, &p.Likes, &p.Dislikes, &p.UserLike)
+		&p.ID, &p.UserID, &p.Username, &p.Title, &p.Body, &p.CreatedAt, &p.Likes, &p.Dislikes, &p.UserLike)
 	if err != nil {
 		return nil, err
 	}

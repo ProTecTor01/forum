@@ -1,0 +1,128 @@
+﻿<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Real-Time Forum</title>
+  <link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+  <div class="bg"></div>
+  <header class="topbar">
+    <div class="brand">Real-Time Forum</div>
+    <div class="nav">
+      <button class="nav-btn" data-view="feed">Лента</button>
+      <button class="nav-btn" data-view="create">Новый пост</button>
+      <button class="nav-btn" data-view="chat">Чат</button>
+    </div>
+    <div class="auth-area" id="auth-area">
+      <span id="user-label"></span>
+      <button id="logout-btn" class="ghost">Выйти</button>
+    </div>
+  </header>
+
+  <main class="app">
+    <aside class="sidebar" id="chat-sidebar">
+      <div class="sidebar-head">Сообщения</div>
+      <div class="chat-list" id="chat-list"></div>
+    </aside>
+
+    <section class="content">
+      <section id="auth-view" class="view">
+        <div class="auth-grid">
+          <form id="login-form" class="card">
+            <h2>Вход</h2>
+            <label>Никнейм или email<input name="identifier" required /></label>
+            <label>Пароль<input name="password" type="password" required /></label>
+            <button type="submit">Войти</button>
+            <p class="error" id="login-error"></p>
+          </form>
+
+          <form id="register-form" class="card">
+            <h2>Регистрация</h2>
+            <label>Никнейм<input name="username" required /></label>
+            <label>Email<input name="email" type="email" required /></label>
+            <label>Имя<input name="first_name" required /></label>
+            <label>Фамилия<input name="last_name" required /></label>
+            <label>Возраст<input name="age" type="number" min="13" max="120" required /></label>
+            <label>Пол
+              <select name="gender" required>
+                <option value="male">Мужской</option>
+                <option value="female">Женский</option>
+                <option value="other">Другое</option>
+              </select>
+            </label>
+            <label>Пароль<input name="password" type="password" required /></label>
+            <button type="submit">Зарегистрироваться</button>
+            <p class="error" id="register-error"></p>
+          </form>
+        </div>
+      </section>
+
+            <section id="feed-view" class="view">
+        <div class="card">
+          <div class="filters">
+            <select id="category-filter"></select>
+            <select id="type-filter">
+              <option value="">Все</option>
+              <option value="created">Мои</option>
+              <option value="liked">Понравились</option>
+            </select>
+            <button id="refresh-posts" class="ghost">Обновить</button>
+          </div>
+        </div>
+        <div id="new-posts-banner" class="banner hidden">
+          Новые посты: <span id="new-posts-count">0</span>
+          <button id="show-new-posts" class="ghost">Показать</button>
+        </div>
+        <div id="posts"></div>
+      </section>
+
+      <section id="post-view" class="view">
+        <div id="post-detail"></div>
+        <div class="card">
+          <h3>Комментарий</h3>
+          <form id="comment-form">
+            <textarea name="body" rows="4" required></textarea>
+            <input type="hidden" name="parent_id" />
+            <button type="submit">Отправить</button>
+          </form>
+        </div>
+        <div id="comments"></div>
+      </section>
+
+      <section id="create-view" class="view">
+        <form id="post-form" class="card">
+          <h2>Новый пост</h2>
+          <label>Заголовок<input name="title" required /></label>
+          <label>Текст<textarea name="body" rows="6" required></textarea></label>
+          <label>Категории<select name="category_ids" multiple id="category-select"></select></label>
+          <button type="submit">Опубликовать</button>
+          <p class="error" id="post-error"></p>
+        </form>
+      </section>
+
+      <section id="chat-view" class="view">
+        <div class="card chat-panel">
+          <div class="chat-header" id="chat-header">
+  <span id="chat-title">Выберите пользователя</span>
+  <span id="chat-unread" class="badge hidden">0</span>
+  <button id="clear-unread" class="ghost small">Прочитать все</button>
+  <span id="typing-indicator" class="typing hidden">печатает...</span>
+</div>
+          <div class="messages" id="messages"></div>
+          <form id="message-form" class="message-form">
+            <input name="body" placeholder="Сообщение..." autocomplete="off" />
+            <button type="submit">Отправить</button>
+          </form>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
+
+
+

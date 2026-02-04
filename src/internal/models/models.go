@@ -11,6 +11,10 @@ type User struct {
 	ID           int       `db:"id" json:"id"`
 	Username     string    `db:"username" json:"username"`
 	Email        string    `db:"email" json:"email"`
+	FirstName    string    `db:"first_name" json:"first_name"`
+	LastName     string    `db:"last_name" json:"last_name"`
+	Age          int       `db:"age" json:"age"`
+	Gender       string    `db:"gender" json:"gender"`
 	PasswordHash string    `db:"password_hash" json:"-"`
 	CreatedAt    time.Time `db:"created_at" json:"created_at"`
 	Role         string    `db:"role" json:"role"`
@@ -24,8 +28,6 @@ type Post struct {
 	Username     string        `db:"username" json:"username"`
 	Title        string        `db:"title" json:"title"`
 	Body         string        `db:"body" json:"body"`
-	URL          sql.NullString `db:"url" json:"url,omitempty"`
-	HackerNewsID sql.NullInt64 `db:"hacker_news_id" json:"hacker_news_id,omitempty"`
 	CreatedAt    time.Time     `db:"created_at" json:"created_at"`
 	Likes        int           `db:"likes" json:"likes"`
 	Dislikes     int           `db:"dislikes" json:"dislikes"`
@@ -66,4 +68,14 @@ type Session struct {
 	UserID    int       `db:"user_id" json:"user_id"`
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
 	ExpiresAt time.Time `db:"expires_at" json:"expires_at"`
+}
+
+//--------------------------------------------------------------------------------------|
+
+type Message struct {
+	ID         int       `db:"id" json:"id"`
+	SenderID   int       `db:"sender_id" json:"sender_id"`
+	ReceiverID int       `db:"receiver_id" json:"receiver_id"`
+	Body       string    `db:"body" json:"body"`
+	CreatedAt  time.Time `db:"created_at" json:"created_at"`
 }

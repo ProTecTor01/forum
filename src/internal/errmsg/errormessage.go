@@ -25,10 +25,15 @@ var (
 	ErrUsernameFormat      = errors.New("username can only contain letters, numbers, hyphens, and underscores")
 	ErrPasswordLength      = errors.New("password must be between 8 and 128 characters")
 	ErrPasswordComplexity  = errors.New("password must contain at least one uppercase, one lowercase, one number, and one symbol")
+	ErrFirstNameLength     = errors.New("first name must be between 1 and 50 characters")
+	ErrLastNameLength      = errors.New("last name must be between 1 and 50 characters")
+	ErrInvalidAge          = errors.New("age must be between 13 and 120")
+	ErrInvalidGender       = errors.New("gender must be male, female, or other")
 	ErrInvalidCategoryName = errors.New("category name must be 1-50 characters")
 	ErrInvalidPostTitle    = errors.New("post title must be 1-200 characters")
 	ErrInvalidPostBody     = errors.New("post body must be 1-3000 characters")
 	ErrInvalidCommentBody  = errors.New("comment body must be 1-1250 characters")
+	ErrInvalidMessageBody  = errors.New("message body must be 1-2000 characters")
 )
 
 //--------------------------------------------------------------------------------------|
@@ -100,6 +105,46 @@ func ValidatePassword(password string) error {
 
 //--------------------------------------------------------------------------------------|
 
+func ValidateFirstName(name string) error {
+	trimmed := strings.TrimSpace(name)
+	if len([]rune(trimmed)) < 1 || len([]rune(trimmed)) > 50 {
+		return ErrFirstNameLength
+	}
+	return nil
+}
+
+//--------------------------------------------------------------------------------------|
+
+func ValidateLastName(name string) error {
+	trimmed := strings.TrimSpace(name)
+	if len([]rune(trimmed)) < 1 || len([]rune(trimmed)) > 50 {
+		return ErrLastNameLength
+	}
+	return nil
+}
+
+//--------------------------------------------------------------------------------------|
+
+func ValidateAge(age int) error {
+	if age < 13 || age > 120 {
+		return ErrInvalidAge
+	}
+	return nil
+}
+
+//--------------------------------------------------------------------------------------|
+
+func ValidateGender(gender string) error {
+	switch strings.ToLower(strings.TrimSpace(gender)) {
+	case "male", "female", "other":
+		return nil
+	default:
+		return ErrInvalidGender
+	}
+}
+
+//--------------------------------------------------------------------------------------|
+
 func ValidateCategoryName(name string) error {
 	trimmedCatName := strings.TrimSpace(name)
 	if len([]rune(trimmedCatName)) < 1 || len([]rune(trimmedCatName)) > 50 {
@@ -134,6 +179,16 @@ func ValidateCommentBody(body string) error {
 	trimmedBody := strings.TrimSpace(body)
 	if len([]rune(trimmedBody)) < 1 || len([]rune(trimmedBody)) > 1250 {
 		return ErrInvalidCommentBody
+	}
+	return nil
+}
+
+//--------------------------------------------------------------------------------------|
+
+func ValidateMessageBody(body string) error {
+	trimmedBody := strings.TrimSpace(body)
+	if len([]rune(trimmedBody)) < 1 || len([]rune(trimmedBody)) > 2000 {
+		return ErrInvalidMessageBody
 	}
 	return nil
 }

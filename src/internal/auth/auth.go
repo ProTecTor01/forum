@@ -5,15 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
-	"net/http"
-	"src/internal/errmsg"
-	"src/internal/models"
-	"src/internal/sessions"
-	"src/internal/utils"
-	"src/internal/web"
 	"strings"
 	"time"
+
+	"src/internal/errmsg"
+	"src/internal/models"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -30,7 +26,7 @@ func NewDBRepo(db *sql.DB) *DBRepo {
 
 //--------------------------------------------------------------------------------------|
 
-func (r *DBRepo) Register(ctx context.Context, email, username, password string) (*models.User, error) {
+func (r *DBRepo) Register(ctx context.Context, email, username, firstName, lastName string, age int, gender, password string) (*models.User, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash password: %w", err)
@@ -39,12 +35,11 @@ func (r *DBRepo) Register(ctx context.Context, email, username, password string)
 	now := time.Now().UTC().Truncate(time.Second)
 
 	result, err := r.db.ExecContext(ctx,
-		`INSERT INTO users (username, email, password_hash, created_at, role) 
-         VALUES (LOWER(?), LOWER(?), ?, ?, 'user')`, username, email, hash, now)
+		`INSERT INTO users (username, email, first_name, last_name, age, gender, password_hash, created_at, role)
+         VALUES (LOWER(?), LOWER(?), ?, ?, ?, ?, ?, ?, 'user')`,
+		username, email, firstName, lastName, age, strings.ToLower(gender), hash, now)
 
 	if err != nil {
-		log.Printf("User registration error for email %s: %v", email, err)
-
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			return nil, errmsg.ErrUserAlreadyExists
 		}
@@ -60,6 +55,10 @@ func (r *DBRepo) Register(ctx context.Context, email, username, password string)
 		ID:           int(id),
 		Username:     username,
 		Email:        email,
+		FirstName:    firstName,
+		LastName:     lastName,
+		Age:          age,
+		Gender:       strings.ToLower(gender),
 		PasswordHash: string(hash),
 		CreatedAt:    now,
 		Role:         "user",
@@ -68,13 +67,13 @@ func (r *DBRepo) Register(ctx context.Context, email, username, password string)
 
 //--------------------------------------------------------------------------------------|
 
-func (r *DBRepo) Login(ctx context.Context, email, password string) (*models.User, error) {
+func (r *DBRepo) Login(ctx context.Context, identifier, password string) (*models.User, error) {
 	var user models.User
 
 	err := r.db.QueryRowContext(ctx,
-		`SELECT id, username, email, password_hash, created_at, role 
-         FROM users WHERE email = LOWER(?)`, email).Scan(
-		&user.ID, &user.Username, &user.Email, &user.PasswordHash, &user.CreatedAt, &user.Role)
+		`SELECT id, username, email, first_name, last_name, age, gender, password_hash, created_at, role
+         FROM users WHERE email = LOWER(?) OR username = LOWER(?)`, identifier, identifier).Scan(
+		&user.ID, &user.Username, &user.Email, &user.FirstName, &user.LastName, &user.Age, &user.Gender, &user.PasswordHash, &user.CreatedAt, &user.Role)
 
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, errmsg.ErrInvalidCredentials
@@ -95,198 +94,14 @@ func (r *DBRepo) Login(ctx context.Context, email, password string) (*models.Use
 
 //--------------------------------------------------------------------------------------|
 
-func RegisterHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionManager) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		userID := utils.GetUserID(r.Context(), r, sm)
-		if userID > 0 {
-			http.Redirect(w, r, "/posts", http.StatusSeeOther)
-			return
-		}
-
-		if r.Method == http.MethodGet {
-			ts.RenderTemplate(w, "register.html", nil)
-			return
-		}
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		if err := r.ParseForm(); err != nil {
-			http.Error(w, "Invalid form data", http.StatusBadRequest)
-			return
-		}
-
-		email := r.FormValue("email")
-		username := r.FormValue("username")
-		password := r.FormValue("password")
-
-		renderForm := func(errorMsg string, status int) {
-			if status > 0 {
-				w.WriteHeader(status)
-			}
-			ts.RenderTemplate(w, "register.html", map[string]any{
-				"Error":    errorMsg,
-				"Email":    email,
-				"Username": username,
-			})
-		}
-
-		if err := errmsg.ValidateEmail(email); err != nil {
-			renderForm(err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := errmsg.ValidateUsername(username); err != nil {
-			renderForm(err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := errmsg.ValidatePassword(password); err != nil {
-			renderForm(err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		repo := NewDBRepo(db)
-		_, err := repo.Register(r.Context(), email, username, password)
-
-		if err != nil {
-			if errors.Is(err, errmsg.ErrUserAlreadyExists) {
-				renderForm("Email or username is already taken", http.StatusBadRequest)
-				return
-			}
-
-			log.Printf("Registration error: %v", err)
-			web.InternalServerError(w, r, ts, err, 0)
-			return
-		}
-
-		user, err := repo.Login(r.Context(), email, password)
-		if err != nil {
-			log.Printf("Auto-login failed after registration for %s: %v", email, err)
-			web.InternalServerError(w, r, ts, err, 0)
-			return
-		}
-
-		session, err := sm.CreateSession(r.Context(), user.ID)
-		if err != nil {
-			web.InternalServerError(w, r, ts, err, 0)
-			return
-		}
-
-		setAuthCookie(w, session.ID, session.ExpiresAt)
-		http.Redirect(w, r, "/posts", http.StatusSeeOther)
+func (r *DBRepo) GetUserByID(ctx context.Context, userID int) (*models.User, error) {
+	var user models.User
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, username, email, first_name, last_name, age, gender, password_hash, created_at, role
+         FROM users WHERE id = ?`, userID).Scan(
+		&user.ID, &user.Username, &user.Email, &user.FirstName, &user.LastName, &user.Age, &user.Gender, &user.PasswordHash, &user.CreatedAt, &user.Role)
+	if err != nil {
+		return nil, err
 	}
-}
-
-//--------------------------------------------------------------------------------------|
-
-func LoginHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionManager) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		userID := utils.GetUserID(r.Context(), r, sm)
-		if userID > 0 {
-			http.Redirect(w, r, "/posts", http.StatusSeeOther)
-			return
-		}
-
-		if r.Method == http.MethodGet {
-			ts.RenderTemplate(w, "login.html", nil)
-			return
-		}
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		if err := r.ParseForm(); err != nil {
-			http.Error(w, "Invalid form data", http.StatusBadRequest)
-			return
-		}
-
-		email := r.FormValue("email")
-		password := r.FormValue("password")
-
-		renderForm := func(errorMsg string, status int) {
-			if status > 0 {
-				w.WriteHeader(status)
-			}
-			ts.RenderTemplate(w, "login.html", map[string]any{
-				"Error": errorMsg,
-				"Email": email,
-			})
-		}
-
-		if err := errmsg.ValidateEmail(email); err != nil {
-			renderForm(err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		repo := NewDBRepo(db)
-		user, err := repo.Login(r.Context(), email, password)
-
-		if err != nil {
-			if errors.Is(err, errmsg.ErrInvalidCredentials) {
-				renderForm("Invalid credentials", http.StatusBadRequest)
-				return
-			}
-
-			log.Printf("Login lookup/db error for email '%s': %v", email, err)
-			web.InternalServerError(w, r, ts, err, 0)
-			return
-		}
-
-		session, err := sm.CreateSession(r.Context(), user.ID)
-		if err != nil {
-			web.InternalServerError(w, r, ts, err, 0)
-			return
-		}
-
-		setAuthCookie(w, session.ID, session.ExpiresAt)
-		http.Redirect(w, r, "/posts", http.StatusSeeOther)
-	}
-}
-
-//--------------------------------------------------------------------------------------|
-
-func LogoutHandler(db *sql.DB, sm *sessions.SessionManager) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		cookie, err := r.Cookie("session_id")
-		if err == nil {
-			if err := sm.DeleteSession(r.Context(), cookie.Value); err != nil {
-				log.Printf("Failed to delete session: %v", err)
-			}
-		}
-
-		clearAuthCookie(w)
-		http.Redirect(w, r, "/posts", http.StatusSeeOther)
-	}
-}
-
-//--------------------------------------------------------------------------------------|
-
-func setAuthCookie(w http.ResponseWriter, sessionID string, expiresAt time.Time) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     "session_id",
-		Value:    sessionID,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   utils.Getenv("FORCE_HTTPS", "false") == "true",
-		SameSite: http.SameSiteStrictMode,
-		Expires:  expiresAt,
-	})
-}
-
-func clearAuthCookie(w http.ResponseWriter) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     "session_id",
-		Value:    "",
-		Path:     "/",
-		Expires:  time.Unix(0, 0),
-		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   utils.Getenv("FORCE_HTTPS", "false") == "true",
-		SameSite: http.SameSiteStrictMode,
-	})
+	return &user, nil
 }

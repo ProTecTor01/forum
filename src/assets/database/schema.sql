@@ -4,6 +4,10 @@ CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT NOT NULL UNIQUE,
     username TEXT NOT NULL UNIQUE,
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
+    age INTEGER NOT NULL CHECK(age BETWEEN 13 AND 120),
+    gender TEXT NOT NULL CHECK(gender IN ('male', 'female', 'other')),
     password_hash TEXT NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     role TEXT NOT NULL CHECK(role IN ('user')) DEFAULT 'user'
@@ -28,8 +32,6 @@ CREATE TABLE IF NOT EXISTS posts (
     author TEXT,
     title TEXT NOT NULL CHECK(length(TRIM(title)) BETWEEN 1 AND 200),
     body TEXT NOT NULL CHECK(length(TRIM(body)) BETWEEN 1 AND 3000),
-    url TEXT,
-    hacker_news_id INTEGER UNIQUE,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -82,3 +84,17 @@ CREATE TABLE IF NOT EXISTS likes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_likes_target ON likes(target_id, target_type);
+
+CREATE TABLE IF NOT EXISTS messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sender_id INTEGER NOT NULL,
+    receiver_id INTEGER NOT NULL,
+    body TEXT NOT NULL CHECK(length(TRIM(body)) BETWEEN 1 AND 2000),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_messages_receiver_id ON messages(receiver_id);
+CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);

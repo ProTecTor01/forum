@@ -3,14 +3,9 @@ package categories
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
-	"net/http"
 	"src/internal/errmsg"
 	"src/internal/models"
-	"src/internal/sessions"
-	"src/internal/utils"
-	"src/internal/web"
 	"strings"
 )
 
@@ -22,83 +17,6 @@ type DBRepo struct {
 
 func NewDBRepo(db *sql.DB) *DBRepo {
 	return &DBRepo{db: db}
-}
-
-//--------------------------------------------------------------------------------------|
-
-func GetCategoriesHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionManager) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		repo := NewDBRepo(db)
-		categories, err := repo.GetCategories(r.Context())
-		if err != nil {
-			web.InternalServerError(w, r, ts, err, utils.GetUserID(r.Context(), r, sm))
-			return
-		}
-		ts.RenderTemplate(w, "categories.html", map[string]any{
-			"Categories": categories,
-			"UserID":     utils.GetUserID(r.Context(), r, sm),
-		})
-	}
-}
-
-//--------------------------------------------------------------------------------------|
-
-func CreateCategoryHandler(db *sql.DB, ts *web.TemplateStore, sm *sessions.SessionManager) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		userID := utils.GetUserID(r.Context(), r, sm)
-		if userID == 0 {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-
-		if r.Method == http.MethodGet {
-			ts.RenderTemplate(w, "category_create.html", map[string]any{
-				"UserID": userID,
-			})
-			return
-		}
-
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		if err := r.ParseForm(); err != nil {
-			http.Error(w, "Invalid form data", http.StatusBadRequest)
-			return
-		}
-
-		name := r.FormValue("name")
-		if err := errmsg.ValidateCategoryName(name); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			ts.RenderTemplate(w, "category_create.html", map[string]any{
-				"Error":  err.Error(),
-				"UserID": userID,
-			})
-			return
-		}
-
-		repo := NewDBRepo(db)
-		_, err := repo.CreateCategory(r.Context(), name)
-		if err != nil {
-			if errors.Is(err, errmsg.ErrUniqueConstraint) {
-				w.WriteHeader(http.StatusBadRequest)
-				ts.RenderTemplate(w, "category_create.html", map[string]any{
-					"Error":  "A category with this name already exists",
-					"UserID": userID,
-				})
-			} else {
-				web.InternalServerError(w, r, ts, err, userID)
-			}
-			return
-		}
-		http.Redirect(w, r, "/categories", http.StatusSeeOther)
-	}
 }
 
 //--------------------------------------------------------------------------------------|
