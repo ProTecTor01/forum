@@ -598,12 +598,17 @@ func (a *API) ChatList(w http.ResponseWriter, r *http.Request) {
 			serverError(w, err)
 			return
 		}
+		lastTimeRFC3339 := ""
+		if lastTime.Valid {
+			lastTimeRFC3339 = normalizeDBTimeToRFC3339(lastTime.String)
+		}
+
 		items = append(items, map[string]any{
 			"id":         id,
 			"username":   username,
 			"first_name": firstName,
 			"last_name":  lastName,
-			"last_time":  lastTime.String,
+			"last_time":  lastTimeRFC3339,
 			"online":     onlineSet[id],
 		})
 	}
@@ -859,6 +864,33 @@ func getLimitOffset(r *http.Request) (int, int) {
 		offset = 0
 	}
 	return limit, offset
+}
+
+func normalizeDBTimeToRFC3339(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+
+	layouts := []string{
+		time.RFC3339Nano,
+		time.RFC3339,
+		"2006-01-02 15:04:05 -0700 MST",
+		"2006-01-02 15:04:05 -0700",
+		"2006-01-02 15:04:05-07:00",
+		"2006-01-02 15:04:05.999999999-07:00",
+		"2006-01-02 15:04:05.999999999",
+		"2006-01-02 15:04:05",
+		"2006-01-02T15:04:05",
+	}
+
+	for _, layout := range layouts {
+		if t, err := time.Parse(layout, raw); err == nil {
+			return t.UTC().Format(time.RFC3339)
+		}
+	}
+
+	return raw
 }
 
 func methodNotAllowed(w http.ResponseWriter) {

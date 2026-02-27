@@ -286,6 +286,30 @@ select {
   font-size: 14px;
 }
 
+.reactions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.reaction-btn {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 6px 10px;
+  border-radius: 999px;
+}
+
+.reaction-btn:hover {
+  background: rgba(240, 90, 40, 0.08);
+  border-color: rgba(240, 90, 40, 0.4);
+}
+
+.reaction-btn.active {
+  background: rgba(240, 90, 40, 0.16);
+  border-color: rgba(240, 90, 40, 0.7);
+}
+
 .tags {
   display: flex;
   gap: 8px;

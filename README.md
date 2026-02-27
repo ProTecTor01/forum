@@ -1,74 +1,93 @@
 # Real-Time Forum
 
-SPA ����� �� Go + SQLite + WebSockets. ���� HTML, ��� �������� ������������� ����� JS.
+Лёгкий форум в виде SPA на Go + SQLite + WebSocket (реальное время).
 
-## ������
+Коротко
+- Сервер: Go
+- База: SQLite (файловая база в assets/database)
+- Клиент: SPA в assets/static
+- WebSocket: пуш-уведомления (новые посты, комментарии, ЛС, присутствие)
 
-Windows (PowerShell):
+Требования
+- Go 1.24+ (рекомендуется)
+- На Windows для сборки `github.com/mattn/go-sqlite3` нужен C-компилятор (MSYS2 / MinGW-w64)
+
+Быстрая подготовка (Windows)
+1. Установите Go: https://go.dev/dl/
+2. Установите MSYS2: https://www.msys2.org/
+   - В MSYS2 MinGW 64-bit выполните:
+     ```powershell
+     pacman -Syu
+     pacman -S mingw-w64-x86_64-gcc
+     ```
+   - Добавьте `C:\msys64\mingw64\bin` в PATH (если путь отличается — используйте свой).
+3. Убедитесь, что `go version` и `gcc --version` работают в PowerShell.
+
+Запуск локально
+- Запускайте из папки `src` (там находится `go.mod`).
+
+PowerShell (Windows):
 ```powershell
-$env:CGO_ENABLED=1; go run cmd/server/main.go
+cd src
+$env:CGO_ENABLED=1
+go run cmd/server/main.go
 ```
 
-Linux/macOS:
+Одинарная команда:
+```powershell
+$env:CGO_ENABLED=1; Set-Location src; go run cmd/server/main.go
+```
+
+WSL / Linux / macOS:
 ```bash
+cd src
 CGO_ENABLED=1 go run cmd/server/main.go
 ```
 
-�������:
-`http://127.0.0.1:8080`
+Полезные переменные окружения
+- `PORT` — порт (по умолчанию 8080)
+- `DB_PATH` — путь к sqlite (по умолчанию `./assets/database/forum.db`)
+- `SCHEMA_PATH` — путь к `schema.sql`
+- `STATIC_DIR` — директория со статикой (`./assets/static/`)
+- `FORCE_HTTPS` — `true/false` (влияет на secure cookies)
 
-## ��� ����
-
-- ����������� � ���� (��� ��� email + ������)
-- ����� ������ � �����������
-- ����������� � ������
-- ������ ��������� (����?����)
-- ������/������� �������������
-- ���������� ����� �� ���������� ���������
-- ������������� ��������� + ���������� ���
-- ������ ����� ������
-
-## WebSocket �������
-
-������ ���������� ������� � �������:
-```json
-{ "type": "...", "data": { } }
+Пример с другим портом:
+```powershell
+cd src
+$env:CGO_ENABLED=1
+$env:PORT=8081
+go run cmd/server/main.go
 ```
 
-����:
-- `post_created`
-- `comment_created`
-- `pm_message`
-- `presence`
-- `typing`
+Сборка бинарника:
+```bash
+cd src
+CGO_ENABLED=1 go build -o forum cmd/server/main.go
+./forum
+```
 
-## API ��������
+Инициализация БД
+- В `assets/database` есть `schema.sql` и миграции. Если файл БД отсутствует, сервер может создать его и применить схему (следите за логами).
 
-- `POST /api/register`
-- `POST /api/login`
-- `POST /api/logout`
-- `GET /api/me`
+Docker (опционально)
+```bash
+cd src
+docker build -t forum .
+docker run -p 8080:8080 -e PORT=8080 forum
+```
 
-- `GET /api/posts`
-- `GET /api/posts/:id`
-- `POST /api/posts`
-- `POST /api/comments`
-- `POST /api/likes`
+Где смотреть код
+- Сервер: [src/cmd/server/main.go](src/cmd/server/main.go)
+- Конфиг: [src/internal/config](src/internal/config)
+- Статика: [src/assets/static](src/assets/static)
+- БД и миграции: [src/assets/database](src/assets/database)
 
-- `GET /api/categories`
-- `POST /api/categories`
+Частые проблемы
+- Ошибка сборки sqlite3/cgo — нет `gcc` в PATH. Установите MSYS2/MinGW-w64 и добавьте `mingw64/bin` в PATH.
+- `cannot find module` — вы запускали из корня проекта; перейдите в `src`.
+- Порт занят — измените `PORT`.
 
-- `GET /api/chats`
-- `GET /api/messages`
-- `POST /api/messages`
+Если нужно — могу помочь настроить MSYS2 и запустить сервер прямо сейчас; пришлите вывод ошибок из консоли.
 
-WebSocket:
-- `GET /ws`
-
-## ���������� ���������
-
-- `PORT` � ���� (�� ��������� 8080)
-- `DB_PATH` � ���� � �� (`./assets/database/forum.db`)
-- `SCHEMA_PATH` � ���� � ����� (`./assets/database/schema.sql`)
-- `STATIC_DIR` � ���� � ������� (`./assets/static/`)
-- `FORCE_HTTPS` � Secure cookies (`false` �� ���������)
+---
+Резервная копия старой версии: `README.md.bak`

@@ -5,6 +5,7 @@
   pendingPosts: [],
   categories: [],
   currentPost: null,
+  currentComments: [],
   chats: [],
   activeChat: null,
   messages: [],
@@ -57,6 +58,12 @@ function formatDate(value) {
   return date.toLocaleString("ru-RU", { dateStyle: "medium", timeStyle: "short" });
 }
 
+function toTimestamp(value) {
+  if (!value) return 0;
+  const ts = Date.parse(value);
+  return Number.isNaN(ts) ? 0 : ts;
+}
+
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, "&amp;")
@@ -64,6 +71,85 @@ function escapeHtml(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+function getUserLikeValue(value) {
+  if (typeof value === "number") return value;
+  if (value && typeof value === "object") {
+    if (Object.prototype.hasOwnProperty.call(value, "Valid") && value.Valid === false) return 0;
+    if (Object.prototype.hasOwnProperty.call(value, "Int64")) return Number(value.Int64) || 0;
+  }
+  return 0;
+}
+
+function renderReactionControls(targetType, targetId, likes, dislikes, userLikeRaw) {
+  const userLike = getUserLikeValue(userLikeRaw);
+  const likeClass = userLike === 1 ? "reaction-btn active" : "reaction-btn";
+  const dislikeClass = userLike === -1 ? "reaction-btn active" : "reaction-btn";
+  return `
+    <div class="reactions">
+      <button class="${likeClass}" data-target-type="${targetType}" data-target-id="${targetId}" data-current-like="${userLike}" data-like-value="1" type="button">👍 ${likes}</button>
+      <button class="${dislikeClass}" data-target-type="${targetType}" data-target-id="${targetId}" data-current-like="${userLike}" data-like-value="-1" type="button">👎 ${dislikes}</button>
+    </div>
+  `;
+}
+
+function setUserLikeValue(entity, value) {
+  if (!entity) return;
+  if (entity.user_like && typeof entity.user_like === "object" && Object.prototype.hasOwnProperty.call(entity.user_like, "Int64")) {
+    entity.user_like.Int64 = value;
+    entity.user_like.Valid = value !== 0;
+  } else {
+    entity.user_like = value;
+  }
+}
+
+function applyReactionToEntity(entity, nextValue) {
+  if (!entity) return;
+  const prevValue = getUserLikeValue(entity.user_like);
+  if (prevValue === nextValue) return;
+
+  if (prevValue === 1) entity.likes = Math.max(0, (entity.likes || 0) - 1);
+  if (prevValue === -1) entity.dislikes = Math.max(0, (entity.dislikes || 0) - 1);
+  if (nextValue === 1) entity.likes = (entity.likes || 0) + 1;
+  if (nextValue === -1) entity.dislikes = (entity.dislikes || 0) + 1;
+
+  setUserLikeValue(entity, nextValue);
+}
+
+function saveReactionSnapshot(entity) {
+  return {
+    entity,
+    likes: entity.likes || 0,
+    dislikes: entity.dislikes || 0,
+    userLike: getUserLikeValue(entity.user_like),
+  };
+}
+
+function restoreReactionSnapshot(snapshot) {
+  const { entity, likes, dislikes, userLike } = snapshot;
+  entity.likes = likes;
+  entity.dislikes = dislikes;
+  setUserLikeValue(entity, userLike);
+}
+
+function findCommentByID(comments, targetID) {
+  for (const comment of comments) {
+    if (comment.id === targetID) return comment;
+    const child = findCommentByID(comment.children || [], targetID);
+    if (child) return child;
+  }
+  return null;
+}
+
+function reRenderReactions() {
+  if (views.feed.classList.contains("active")) {
+    renderPosts();
+  }
+  if (state.currentPost && views.post.classList.contains("active")) {
+    renderPostDetail(state.currentPost);
+    renderComments(state.currentComments || []);
+  }
 }
 
 function showBanner() {
@@ -266,6 +352,48 @@ function bindUI() {
   }
   categoryFilter.addEventListener("change", loadPosts);
   typeFilter.addEventListener("change", loadPosts);
+
+  document.body.addEventListener("click", async e => {
+    const btn = e.target.closest(".reaction-btn");
+    if (!btn) return;
+
+    const targetType = btn.dataset.targetType;
+    const targetID = Number(btn.dataset.targetId);
+    const current = Number(btn.dataset.currentLike || 0);
+    const requested = Number(btn.dataset.likeValue);
+    const value = current === requested ? 0 : requested;
+
+    if (!targetID || (targetType !== "post" && targetType !== "comment")) return;
+
+    const snapshots = [];
+    if (targetType === "post") {
+      const postInFeed = state.posts.find(p => p.id === targetID);
+      if (postInFeed) snapshots.push(saveReactionSnapshot(postInFeed));
+      if (state.currentPost && state.currentPost.id === targetID && state.currentPost !== postInFeed) {
+        snapshots.push(saveReactionSnapshot(state.currentPost));
+      }
+      if (postInFeed) applyReactionToEntity(postInFeed, value);
+      if (state.currentPost && state.currentPost.id === targetID) applyReactionToEntity(state.currentPost, value);
+    } else {
+      const comment = findCommentByID(state.currentComments || [], targetID);
+      if (comment) {
+        snapshots.push(saveReactionSnapshot(comment));
+        applyReactionToEntity(comment, value);
+      }
+    }
+    reRenderReactions();
+
+    try {
+      await apiFetch("/api/likes", {
+        method: "POST",
+        body: JSON.stringify({ target_id: targetID, target_type: targetType, value }),
+      });
+    } catch (err) {
+      snapshots.forEach(restoreReactionSnapshot);
+      reRenderReactions();
+      alert(err.message);
+    }
+  });
 }
 
 async function loadCategories() {
@@ -307,7 +435,7 @@ function renderPosts() {
       <div class="meta">${post.username} • ${formatDate(post.created_at)}</div>
       <div>${escapeHtml(post.body)}</div>
       <div class="tags">${(post.categories || []).map(c => `<span class="tag">${escapeHtml(c.name)}</span>`).join("")}</div>
-      <div class="meta">?? ${post.likes} • ?? ${post.dislikes}</div>
+      ${renderReactionControls("post", post.id, post.likes, post.dislikes, post.user_like)}
       <button class="ghost">Открыть</button>
     `;
     card.querySelector("button").addEventListener("click", () => showPost(post.id));
@@ -318,8 +446,9 @@ function renderPosts() {
 async function showPost(id) {
   const data = await apiFetch(`/api/posts/${id}`);
   state.currentPost = data.post;
+  state.currentComments = data.comments || [];
   renderPostDetail(data.post);
-  renderComments(data.comments || []);
+  renderComments(state.currentComments);
   showView("post");
 }
 
@@ -330,7 +459,7 @@ function renderPostDetail(post) {
       <div class="meta">${post.username} • ${formatDate(post.created_at)}</div>
       <p>${escapeHtml(post.body)}</p>
       <div class="tags">${(post.categories || []).map(c => `<span class="tag">${escapeHtml(c.name)}</span>`).join("")}</div>
-      <div class="meta">?? ${post.likes} • ?? ${post.dislikes}</div>
+      ${renderReactionControls("post", post.id, post.likes, post.dislikes, post.user_like)}
     </article>
   `;
 }
@@ -347,6 +476,7 @@ function renderComment(comment, depth) {
   el.innerHTML = `
     <div class="meta">${escapeHtml(comment.username)} • ${formatDate(comment.created_at)}</div>
     <div>${escapeHtml(comment.body)}</div>
+    ${renderReactionControls("comment", comment.id, comment.likes, comment.dislikes, comment.user_like)}
     <button class="ghost">Ответить</button>
   `;
   el.querySelector("button").addEventListener("click", () => {
@@ -445,7 +575,7 @@ function renderMessages() {
     const el = document.createElement("div");
     el.className = "message";
     const isMine = msg.sender_id === state.user.id;
-    const name = isMine ? "Вы" : escapeHtml(state.activeChat.username);
+    const name = isMine ? escapeHtml(state.user.username) : escapeHtml(state.activeChat.username);
     el.innerHTML = `
       <div class="meta">${name} • ${formatDate(msg.created_at)}</div>
       <div>${escapeHtml(msg.body)}</div>
@@ -519,7 +649,7 @@ function applyPresence(ids) {
 function reorderChats() {
   const withTime = state.chats.filter(c => c.last_time);
   const withoutTime = state.chats.filter(c => !c.last_time);
-  withTime.sort((a, b) => new Date(b.last_time) - new Date(a.last_time));
+  withTime.sort((a, b) => toTimestamp(b.last_time) - toTimestamp(a.last_time));
   withoutTime.sort((a, b) => a.username.localeCompare(b.username));
   state.chats = [...withTime, ...withoutTime];
   renderChatList();
