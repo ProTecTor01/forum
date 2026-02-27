@@ -15,6 +15,7 @@
   hasMoreMessages: true,
   isTyping: false,
   typingTimeout: null,
+  notificationPermission: "default",
 };
 
 const views = {
@@ -44,6 +45,8 @@ const messageInput = document.querySelector("#message-form input");
 const chatTitleEl = document.getElementById("chat-title");
 const chatUnreadEl = document.getElementById("chat-unread");
 const clearUnreadBtn = document.getElementById("clear-unread");
+const themeToggleBtn = document.getElementById("theme-toggle");
+const toastRoot = document.getElementById("toast-root");
 
 function showView(name) {
   Object.values(views).forEach(v => v.classList.remove("active"));
@@ -51,6 +54,25 @@ function showView(name) {
   if (name !== "chat") {
     setTypingIndicator(false);
   }
+}
+
+function applyTheme(theme) {
+  const next = theme === "dark" ? "dark" : "light";
+  document.body.setAttribute("data-theme", next);
+  try {
+    localStorage.setItem("theme", next);
+  } catch (_) {}
+  if (themeToggleBtn) {
+    themeToggleBtn.textContent = next === "dark" ? "Светлая тема" : "Темная тема";
+  }
+}
+
+function initTheme() {
+  let saved = null;
+  try {
+    saved = localStorage.getItem("theme");
+  } catch (_) {}
+  applyTheme(saved === "dark" ? "dark" : "light");
 }
 
 function formatDate(value) {
@@ -158,6 +180,46 @@ function showBanner() {
   bannerEl.classList.remove("hidden");
 }
 
+function showToast(text) {
+  if (!toastRoot) return;
+  const item = document.createElement("div");
+  item.className = "toast";
+  item.textContent = text;
+  toastRoot.appendChild(item);
+  requestAnimationFrame(() => item.classList.add("visible"));
+  setTimeout(() => {
+    item.classList.remove("visible");
+    setTimeout(() => item.remove(), 240);
+  }, 3000);
+}
+
+function handleSessionExpired(message) {
+  if (state.ws) {
+    const socket = state.ws;
+    state.ws = null;
+    socket.close();
+  }
+  state.user = null;
+  state.activeChat = null;
+  state.currentPost = null;
+  state.currentComments = [];
+  state.messages = [];
+  showAuth();
+  if (message) {
+    alert(message);
+  }
+}
+
+function askNotificationPermission() {
+  if (!("Notification" in window)) return;
+  state.notificationPermission = Notification.permission;
+  if (state.notificationPermission === "default") {
+    Notification.requestPermission().then(permission => {
+      state.notificationPermission = permission;
+    }).catch(() => {});
+  }
+}
+
 function flushPendingPosts() {
   if (!state.pendingPosts.length) return;
   state.posts = [...state.pendingPosts, ...state.posts];
@@ -191,12 +253,16 @@ async function apiFetch(path, options = {}) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    if (res.status === 401) {
+      handleSessionExpired("Сессия истекла. Войдите снова.");
+    }
     throw new Error(data.error || "Ошибка запроса");
   }
   return data;
 }
 
 async function init() {
+  initTheme();
   await loadMe();
   bindUI();
   if (state.user) {
@@ -226,11 +292,19 @@ async function bootApp() {
   chatSidebar.style.display = "block";
   document.getElementById("user-label").textContent = state.user.username;
   await Promise.all([loadCategories(), loadPosts(), loadChats()]);
+  askNotificationPermission();
   connectWS();
   showView("feed");
 }
 
 function bindUI() {
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener("click", () => {
+      const current = document.body.getAttribute("data-theme");
+      applyTheme(current === "dark" ? "light" : "dark");
+    });
+  }
+
   document.querySelectorAll(".nav-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       const view = btn.dataset.view;
@@ -244,9 +318,7 @@ function bindUI() {
 
   document.getElementById("logout-btn").addEventListener("click", async () => {
     await apiFetch("/api/logout", { method: "POST" });
-    state.user = null;
-    if (state.ws) state.ws.close();
-    showAuth();
+    handleSessionExpired("");
   });
 
   document.getElementById("login-form").addEventListener("submit", async e => {
@@ -612,6 +684,18 @@ function connectWS() {
         setTypingIndicator(Boolean(data.typing));
       }
     }
+    if (payload.type === "session_revoked") {
+      handleSessionExpired("Выполнен вход в аккаунт из другого браузера.");
+    }
+  };
+  state.ws.onclose = async () => {
+    if (!state.user) return;
+    try {
+      await loadMe();
+      if (!state.user) {
+        handleSessionExpired("Сессия завершена. Войдите снова.");
+      }
+    } catch (_) {}
   };
 }
 
@@ -623,6 +707,16 @@ function handleIncomingMessage(msg) {
     reorderChats();
   }
   if (!state.activeChat || state.activeChat.id !== otherId) {
+    if (msg.sender_id !== state.user.id) {
+      const senderName = chat ? chat.username : "Пользователь";
+      showToast(`Новое сообщение от ${senderName}`);
+      if ("Notification" in window && Notification.permission === "granted") {
+        const notification = new Notification(`Новое сообщение от ${senderName}`, {
+          body: msg.body,
+        });
+        notification.onclick = () => window.focus();
+      }
+    }
     state.unread[otherId] = (state.unread[otherId] || 0) + 1;
     state.lastPing = otherId;
     renderChatList();

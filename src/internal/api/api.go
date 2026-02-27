@@ -160,6 +160,7 @@ func (a *API) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	a.hub.ForceLogoutUser(user.ID)
 	setAuthCookie(w, session.ID, session.ExpiresAt)
 	writeJSON(w, http.StatusCreated, user)
 }
@@ -203,6 +204,7 @@ func (a *API) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	a.hub.ForceLogoutUser(user.ID)
 	setAuthCookie(w, session.ID, session.ExpiresAt)
 	writeJSON(w, http.StatusOK, user)
 }

@@ -15,6 +15,9 @@
       <button class="nav-btn" data-view="create">Новый пост</button>
       <button class="nav-btn" data-view="chat">Чат</button>
     </div>
+    <div class="theme-area">
+      <button id="theme-toggle" class="ghost small" type="button">Темная тема</button>
+    </div>
     <div class="auth-area" id="auth-area">
       <span id="user-label"></span>
       <button id="logout-btn" class="ghost">Выйти</button>
@@ -119,6 +122,8 @@
       </section>
     </section>
   </main>
+
+  <div id="toast-root" class="toast-root" aria-live="polite"></div>
 
   <script src="/static/app.js"></script>
 </body>

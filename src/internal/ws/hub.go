@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"log"
 	"sync"
+	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 //--------------------------------------------------------------------------------------|
@@ -84,5 +87,27 @@ func (h *Hub) SendToUser(userID int, event any) {
 		case c.send <- payload:
 		default:
 		}
+	}
+}
+
+func (h *Hub) ForceLogoutUser(userID int) {
+	payload := EncodeEvent("session_revoked", map[string]any{"reason": "new_login"})
+
+	h.mu.RLock()
+	connsMap := h.clients[userID]
+	conns := make([]*Client, 0, len(connsMap))
+	for c := range connsMap {
+		conns = append(conns, c)
+	}
+	h.mu.RUnlock()
+
+	for _, c := range conns {
+		c.Send(payload)
+		_ = c.conn.WriteControl(
+			websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "session revoked"),
+			time.Now().Add(500*time.Millisecond),
+		)
+		_ = c.conn.Close()
 	}
 }
